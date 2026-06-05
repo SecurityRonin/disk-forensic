@@ -1,0 +1,40 @@
+[package]
+name = "disk-forensic"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+license = "MIT"
+description = "Forensic disk partitioning-scheme orchestrator — auto-detects MBR/GPT/APM and dispatches to the right parser"
+repository = "https://github.com/SecurityRonin/disk-forensic"
+keywords = ["forensics", "partition", "mbr", "gpt"]
+categories = ["parser-implementations", "filesystem"]
+exclude = ["fuzz/", ".github/", "deny.toml", "renovate.json", ".pre-commit-config.yaml"]
+
+[dependencies]
+thiserror = "2"
+# Sibling scheme parsers (one per partitioning scheme) and the knowledge base.
+mbr-forensic = { path = "../mbr-forensic", version = "0.1.0" }
+gpt-forensic = { path = "../gpt-forensic", version = "0.1.0" }
+apm-forensic = { path = "../apm-forensic", version = "0.1.0" }
+forensicnomicon = { path = "../forensicnomicon", version = "0.1.0" }
+serde = { version = "1", features = ["derive"], optional = true }
+# JSON output for the `disk-forensic --json` binary (enabled by the serde feature).
+serde_json = { version = "1", optional = true }
+
+[features]
+default = []
+# Serialize the analysis types to JSON, propagating to the scheme parsers.
+serde = [
+    "dep:serde",
+    "dep:serde_json",
+    "mbr-forensic/serde",
+    "apm-forensic/serde",
+    "gpt-forensic/serde",
+    "forensicnomicon/serde",
+]
+
+[dev-dependencies]
+serde_json = "1"
+
+[lints.rust]
+unsafe_code = "forbid"
