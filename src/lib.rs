@@ -138,3 +138,57 @@ fn read_boot_area<R: Read + Seek>(reader: &mut R) -> Result<Vec<u8>, std::io::Er
     buf.truncate(filled);
     Ok(buf)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{Error as IoError, ErrorKind};
+
+    #[test]
+    fn error_display_covers_every_variant() {
+        assert!(Error::UnknownScheme.to_string().contains("unrecognised"));
+        let apm: Error = apm_forensic::Error::NotApm.into();
+        assert!(apm.to_string().contains("APM"));
+        let mbr: Error = mbr_forensic::Error::TooShort(1).into();
+        assert!(mbr.to_string().contains("MBR"));
+        let io: Error = IoError::other("boom").into();
+        assert!(io.to_string().contains("I/O"));
+    }
+
+    /// Yields `Interrupted` once (must be retried), then a hard error.
+    struct FlakyReader {
+        interrupted_once: bool,
+    }
+    impl Read for FlakyReader {
+        fn read(&mut self, _buf: &mut [u8]) -> std::io::Result<usize> {
+            if self.interrupted_once {
+                Err(IoError::other("hard read failure"))
+            } else {
+                self.interrupted_once = true;
+                Err(IoError::from(ErrorKind::Interrupted))
+            }
+        }
+    }
+    impl Seek for FlakyReader {
+        fn seek(&mut self, _: SeekFrom) -> std::io::Result<u64> {
+            Ok(0)
+        }
+    }
+
+    #[test]
+    fn read_boot_area_retries_interrupted_then_propagates_error() {
+        let mut r = FlakyReader {
+            interrupted_once: false,
+        };
+        let err = read_boot_area(&mut r).unwrap_err();
+        assert_eq!(err.to_string(), "hard read failure");
+    }
+
+    #[test]
+    fn read_boot_area_stops_at_eof_on_short_image() {
+        // A sub-1024-byte reader hits the `Ok(0) => break` path.
+        let mut r = std::io::Cursor::new(vec![0u8; 16]);
+        let boot = read_boot_area(&mut r).unwrap();
+        assert_eq!(boot.len(), 16);
+    }
+}

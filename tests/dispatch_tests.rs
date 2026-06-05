@@ -39,6 +39,17 @@ fn dispatches_gpt() {
 }
 
 #[test]
+fn apm_signature_but_invalid_body_propagates_apm_error() {
+    // "ER" at offset 0 → detected as APM, but a zero block size makes the parse
+    // fail, exercising the delegated APM error path.
+    let mut d = vec![0u8; 2048];
+    d[0] = b'E';
+    d[1] = b'R';
+    let err = analyse_disk(&mut Cursor::new(&d), d.len() as u64).unwrap_err();
+    assert!(matches!(err, Error::Apm(_)), "got {err:?}");
+}
+
+#[test]
 fn unpartitioned_disk_is_unknown_scheme() {
     let disk = vec![0u8; 4096];
     let err = analyse_disk(&mut Cursor::new(&disk), disk.len() as u64).unwrap_err();
