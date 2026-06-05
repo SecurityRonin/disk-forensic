@@ -1,6 +1,6 @@
 [package]
 name = "disk-forensic"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.85"
 license = "MIT"
@@ -13,10 +13,10 @@ exclude = ["fuzz/", ".github/", "deny.toml", "renovate.json", ".pre-commit-confi
 [dependencies]
 thiserror = "2"
 # Sibling scheme parsers (one per partitioning scheme) and the knowledge base.
-mbr-forensic = { path = "../mbr-forensic", version = "0.1.0" }
-gpt-forensic = { path = "../gpt-forensic", version = "0.1.0" }
-apm-forensic = { path = "../apm-forensic", version = "0.1.0" }
-forensicnomicon = { path = "../forensicnomicon", version = "0.1.0" }
+mbr-forensic = "0.2.0"
+gpt-forensic = "0.2.0"
+apm-forensic = "0.2.0"
+forensicnomicon = "0.2.0"
 serde = { version = "1", features = ["derive"], optional = true }
 # JSON output for the `disk-forensic --json` binary (enabled by the serde feature).
 serde_json = { version = "1", optional = true }
