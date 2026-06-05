@@ -77,6 +77,16 @@ impl DiskReport {
             DiskReport::Gpt(_) => Scheme::Gpt,
         }
     }
+
+    /// `true` when the analysis recorded at least one anomaly — the CLI's
+    /// non-zero exit signal for triage pipelines.
+    #[must_use]
+    pub fn has_anomalies(&self) -> bool {
+        match self {
+            DiskReport::Apm(a) => !a.anomalies.is_empty(),
+            DiskReport::Mbr(m) | DiskReport::Gpt(m) => !m.anomalies.is_empty(),
+        }
+    }
 }
 
 /// Detect the partitioning scheme of the disk behind `reader` and run the
