@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 fn bin() -> Command {
-    Command::new(env!("CARGO_BIN_EXE_disk-forensic"))
+    Command::new(env!("CARGO_BIN_EXE_disk4n6"))
 }
 
 const APM_FIXTURE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/apm.bin");
@@ -36,7 +36,11 @@ fn analyses_mbr_image() {
 fn analyses_gpt_image() {
     let p = write_tmp("gpt", &build_gpt());
     let out = bin().arg(&p).output().unwrap();
-    assert!(String::from_utf8_lossy(&out.stdout).contains("GPT cross-check"));
+    let s = String::from_utf8_lossy(&out.stdout);
+    // Protective-MBR cross-check AND the full GPT report from gpt-forensic.
+    assert!(s.contains("GPT cross-check"), "{s}");
+    assert!(s.contains("GPT Forensic Analysis"), "{s}");
+    assert!(s.contains("GPT SHA-256:"), "{s}");
     let _ = std::fs::remove_file(&p);
 }
 

@@ -5,13 +5,22 @@
 
 use crate::DiskReport;
 
-/// Render a disk analysis as a multi-line text report.
+/// Render a disk analysis as a multi-line text report, showing the full detail
+/// from each scheme's own parser.
 #[must_use]
 pub fn text_report(report: &DiskReport) -> String {
     match report {
         DiskReport::Apm(a) => apm_forensic::report::text_report(a),
-        // Both carry an MbrAnalysis; mbr-forensic's renderer already includes
-        // the GPT cross-check section for the Gpt case.
-        DiskReport::Mbr(m) | DiskReport::Gpt(m) => mbr_forensic::report::text_report(m),
+        DiskReport::Mbr(m) => mbr_forensic::report::text_report(m),
+        // For GPT, show the protective-MBR analysis followed by the full GPT
+        // report (partitions, GUIDs, CRC status) from gpt-forensic.
+        DiskReport::Gpt(m) => {
+            let mut s = mbr_forensic::report::text_report(m);
+            if let Some(gpt) = &m.gpt {
+                s.push('\n');
+                s.push_str(&gpt_forensic::report::text_report(gpt));
+            }
+            s
+        }
     }
 }

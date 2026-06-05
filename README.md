@@ -11,8 +11,8 @@
 ## See it work in 30 seconds
 
 ```console
-$ cargo install disk-forensic
-$ disk-forensic disk.img
+$ cargo install disk-forensic   # crate: disk-forensic, binary: disk4n6
+$ disk4n6 disk.img
 ```
 
 ```text

@@ -1,8 +1,8 @@
-//! `disk-forensic` — auto-detect a disk's partitioning scheme and analyse it.
+//! `disk4n6` — auto-detect a disk's partitioning scheme and analyse it.
 //!
 //! Usage:
-//!   disk-forensic <image>          # human-readable report
-//!   disk-forensic --json <image>   # JSON (requires the `serde` feature)
+//!   disk4n6 <image>          # human-readable report
+//!   disk4n6 --json <image>   # JSON (requires the `serde` feature)
 
 use std::fs::File;
 use std::process::ExitCode;
@@ -14,21 +14,21 @@ fn main() -> ExitCode {
         match arg.as_str() {
             "--json" => json = true,
             "-h" | "--help" => {
-                eprintln!("usage: disk-forensic [--json] <image>");
+                eprintln!("usage: disk4n6 [--json] <image>");
                 return ExitCode::from(2);
             }
             _ => path = Some(arg),
         }
     }
     let Some(path) = path else {
-        eprintln!("usage: disk-forensic [--json] <image>");
+        eprintln!("usage: disk4n6 [--json] <image>");
         return ExitCode::from(2);
     };
 
     let mut file = match File::open(&path) {
         Ok(f) => f,
         Err(e) => {
-            eprintln!("disk-forensic: cannot open {path}: {e}");
+            eprintln!("disk4n6: cannot open {path}: {e}");
             return ExitCode::from(2);
         }
     };
@@ -37,7 +37,7 @@ fn main() -> ExitCode {
     let report = match disk_forensic::analyse_disk(&mut file, size) {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("disk-forensic: {path}: {e}");
+            eprintln!("disk4n6: {path}: {e}");
             return ExitCode::FAILURE;
         }
     };
@@ -48,14 +48,14 @@ fn main() -> ExitCode {
             match serde_json::to_string_pretty(&report) {
                 Ok(s) => println!("{s}"),
                 Err(e) => {
-                    eprintln!("disk-forensic: JSON error: {e}");
+                    eprintln!("disk4n6: JSON error: {e}");
                     return ExitCode::FAILURE;
                 }
             }
         }
         #[cfg(not(feature = "serde"))]
         {
-            eprintln!("disk-forensic: --json requires the `serde` feature");
+            eprintln!("disk4n6: --json requires the `serde` feature");
             return ExitCode::from(2);
         }
     } else {
