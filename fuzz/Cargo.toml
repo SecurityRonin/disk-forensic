@@ -1,0 +1,21 @@
+[package]
+name = "disk-forensic-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.disk-forensic]
+path = ".."
+
+[[bin]]
+name = "analyse_disk"
+path = "fuzz_targets/analyse_disk.rs"
+test = false
+doc = false
+bench = false
