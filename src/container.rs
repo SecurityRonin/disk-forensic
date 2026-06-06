@@ -6,9 +6,85 @@
 //! `forensicnomicon` knowledge modules (single source of truth). A flat raw/`dd`
 //! image has no wrapper and is analysed in place.
 
+use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
+use std::path::Path;
 
 use forensicnomicon::{aff4, dmg, ewf, qcow2, vhd, vhdx, vmdk};
+
+/// Anything that can be both read and seeked — the disk view `analyse_disk`
+/// consumes. A blanket impl covers every `Read + Seek`, so a decoder's reader or
+/// a plain `File` both box into `Box<dyn ReadSeek>`.
+pub trait ReadSeek: Read + Seek {}
+impl<T: Read + Seek> ReadSeek for T {}
+
+/// A decoded, analysable disk image.
+pub struct OpenedImage {
+    /// The container format it was decoded from (`Raw` for a flat image).
+    pub format: ContainerFormat,
+    /// Logical disk size in bytes (the decoded media size).
+    pub size: u64,
+    /// A `Read + Seek` view of the decoded disk, ready for `analyse_disk`.
+    pub reader: Box<dyn ReadSeek>,
+}
+
+impl core::fmt::Debug for OpenedImage {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("OpenedImage")
+            .field("format", &self.format)
+            .field("size", &self.size)
+            .finish_non_exhaustive()
+    }
+}
+
+/// Failure opening/decoding an image.
+#[derive(Debug, thiserror::Error)]
+pub enum OpenError {
+    /// I/O failure opening or reading the file.
+    #[error("I/O error: {0}")]
+    Io(#[from] std::io::Error),
+    /// EWF (E01) decoding failed.
+    #[error("EWF decode error: {0}")]
+    Ewf(String),
+    /// The container format is recognized but its decoder is not yet wired —
+    /// decode it to a raw image first.
+    #[error("{0:?} container decoding is not yet supported — decode it to a raw image first")]
+    Unsupported(ContainerFormat),
+}
+
+/// Open `path`, sniff its container format, and return a decoded `Read + Seek`
+/// disk view: raw images pass through; E01/EWF is decoded; other recognized
+/// containers return [`OpenError::Unsupported`].
+///
+/// # Errors
+/// [`OpenError::Io`] on a read failure, [`OpenError::Ewf`] on a bad E01, or
+/// [`OpenError::Unsupported`] for a container whose decoder is not yet wired.
+pub fn open(path: &Path) -> Result<OpenedImage, OpenError> {
+    let mut file = File::open(path)?;
+    let format = sniff(&mut file)?;
+    match format {
+        ContainerFormat::Raw => {
+            let size = file.metadata()?.len();
+            Ok(OpenedImage {
+                format,
+                size,
+                reader: Box::new(file),
+            })
+        }
+        ContainerFormat::Ewf => {
+            // `ewf` (imported) is forensicnomicon's magic module; the decoder is
+            // the external `ewf` crate, reached via the absolute path.
+            let reader = ::ewf::EwfReader::open(path).map_err(|e| OpenError::Ewf(e.to_string()))?;
+            let size = reader.total_size();
+            Ok(OpenedImage {
+                format,
+                size,
+                reader: Box::new(reader),
+            })
+        }
+        other => Err(OpenError::Unsupported(other)),
+    }
+}
 
 /// Bytes read from the start for header-magic detection.
 const HEADER_SNIFF_BYTES: usize = 4096;

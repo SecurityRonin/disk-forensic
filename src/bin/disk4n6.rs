@@ -4,7 +4,6 @@
 //!   disk4n6 <image>          # human-readable report
 //!   disk4n6 --json <image>   # JSON (requires the `serde` feature)
 
-use std::fs::File;
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
@@ -25,33 +24,24 @@ fn main() -> ExitCode {
         return ExitCode::from(2);
     };
 
-    let mut file = match File::open(&path) {
-        Ok(f) => f,
+    // Sniff + decode the container (raw passes through; E01 is decoded; other
+    // recognized containers report "decode first" and exit).
+    let mut opened = match disk_forensic::container::open(std::path::Path::new(&path)) {
+        Ok(o) => o,
+        Err(disk_forensic::container::OpenError::Unsupported(fmt)) => {
+            eprintln!(
+                "disk4n6: {path}: {fmt:?} container decoding is not yet supported — decode it to \
+                 a raw image first"
+            );
+            return ExitCode::from(2);
+        }
         Err(e) => {
             eprintln!("disk4n6: cannot open {path}: {e}");
             return ExitCode::from(2);
         }
     };
-    let size = file.metadata().map(|m| m.len()).unwrap_or(0);
 
-    // Recognize a container wrapper (E01/VHD/VHDX/VMDK/QCOW2/AFF4/DMG) and refuse
-    // to mis-parse it as a raw disk. Decoding to a Read+Seek view is not yet wired.
-    match disk_forensic::container::sniff(&mut file) {
-        Ok(disk_forensic::container::ContainerFormat::Raw) => {}
-        Ok(fmt) => {
-            eprintln!(
-                "disk4n6: {path}: detected {fmt:?} container image — decode it to a raw image \
-                 first (container decoding not yet supported)"
-            );
-            return ExitCode::from(2);
-        }
-        Err(e) => {
-            eprintln!("disk4n6: {path}: {e}");
-            return ExitCode::from(2);
-        }
-    }
-
-    let report = match disk_forensic::analyse_disk(&mut file, size) {
+    let report = match disk_forensic::analyse_disk(&mut opened.reader, opened.size) {
         Ok(r) => r,
         Err(e) => {
             eprintln!("disk4n6: {path}: {e}");

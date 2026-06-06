@@ -18,12 +18,12 @@ fn write_tmp(tag: &str, bytes: &[u8]) -> PathBuf {
 }
 
 #[test]
-fn recognized_container_is_reported_not_misparsed() {
-    // An E01 (EWF) wrapper must be recognized and reported, not blindly fed to
-    // the partition parsers.
+fn unsupported_container_is_reported_not_misparsed() {
+    // A not-yet-decodable container (VMDK) must be recognized and reported, not
+    // blindly fed to the partition parsers. (E01 is now decoded, not stubbed.)
     let mut data = vec![0u8; 1024];
-    data[..8].copy_from_slice(&[0x45, 0x56, 0x46, 0x09, 0x0D, 0x0A, 0xFF, 0x00]); // EVF1
-    let p = write_tmp("ewf", &data);
+    data[..4].copy_from_slice(&[0x4B, 0x44, 0x4D, 0x56]); // VMDK "KDMV"
+    let p = write_tmp("vmdk", &data);
     let out = bin().arg(&p).output().unwrap();
     assert_eq!(
         out.status.code(),

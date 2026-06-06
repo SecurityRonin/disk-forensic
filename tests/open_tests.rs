@@ -5,7 +5,10 @@ use disk_forensic::container::{open, ContainerFormat, OpenError};
 use disk_forensic::{analyse_disk, Scheme};
 use std::path::Path;
 
-const E01: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/gpt_130_partitions.E01");
+const E01: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/tests/data/gpt_130_partitions.E01"
+);
 const APM: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/apm.bin");
 
 #[test]
