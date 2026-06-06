@@ -2,7 +2,7 @@
 //! [`forensicnomicon::report`] model, so disk4n6 (and a future GUI) render one
 //! uniform [`Report`] instead of N bespoke `XxxAnalysis` types.
 
-use forensicnomicon::report::{Category, Finding, Location, Provenance, Report, Severity, Source};
+use forensicnomicon::report::{Category, Finding, Location, Provenance, Report, Source};
 
 use crate::DiskReport;
 
@@ -41,23 +41,9 @@ fn classify(code: &str) -> Category {
     }
 }
 
-macro_rules! map_severity {
-    ($name:ident, $native:path) => {
-        fn $name(s: $native) -> Severity {
-            use $native as S;
-            match s {
-                S::Info => Severity::Info,
-                S::Low => Severity::Low,
-                S::Medium => Severity::Medium,
-                S::High => Severity::High,
-                S::Critical => Severity::Critical,
-            }
-        }
-    };
-}
-map_severity!(mbr_sev, mbr_forensic::Severity);
-map_severity!(gpt_sev, gpt_forensic::Severity);
-map_severity!(apm_sev, apm_forensic::Severity);
+// Since 0.4.0 every analyzer re-exports `forensicnomicon::report::Severity` as
+// its own `Severity`, so an anomaly's severity is already the canonical type —
+// no per-scheme translation is needed.
 
 /// Normalize an MBR analysis. Findings carry their byte offset as evidence.
 #[must_use]
@@ -65,7 +51,7 @@ pub fn mbr_findings(a: &mbr_forensic::MbrAnalysis) -> Vec<Finding> {
     a.anomalies
         .iter()
         .map(|an| {
-            Finding::observation(mbr_sev(an.severity), classify(an.code), an.code.to_string())
+            Finding::observation(an.severity, classify(an.code), an.code.to_string())
                 .note(an.note.clone())
                 .source(Source {
                     analyzer: "mbr-forensic".to_string(),
@@ -88,7 +74,7 @@ pub fn gpt_findings(a: &gpt_forensic::GptAnalysis) -> Vec<Finding> {
     a.anomalies
         .iter()
         .map(|an| {
-            Finding::observation(gpt_sev(an.severity), classify(an.code), an.code.to_string())
+            Finding::observation(an.severity, classify(an.code), an.code.to_string())
                 .note(an.note.clone())
                 .source(Source {
                     analyzer: "gpt-forensic".to_string(),
@@ -106,7 +92,7 @@ pub fn apm_findings(a: &apm_forensic::ApmAnalysis) -> Vec<Finding> {
     a.anomalies
         .iter()
         .map(|an| {
-            Finding::observation(apm_sev(an.severity), classify(an.code), an.code.to_string())
+            Finding::observation(an.severity, classify(an.code), an.code.to_string())
                 .note(an.note.clone())
                 .source(Source {
                     analyzer: "apm-forensic".to_string(),

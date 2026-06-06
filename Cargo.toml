@@ -13,9 +13,9 @@ exclude = ["fuzz/", ".github/", "deny.toml", "renovate.json", ".pre-commit-confi
 [dependencies]
 thiserror = "2"
 # Sibling scheme parsers (one per partitioning scheme) and the knowledge base.
-mbr-forensic = "0.3.0"
-gpt-forensic = "0.3.0"
-apm-forensic = "0.3.0"
+mbr-forensic = "0.4.0"
+gpt-forensic = "0.4.0"
+apm-forensic = "0.4.0"
 forensicnomicon = "0.3.1"
 # Container/image decoders (decode → Read+Seek view of the disk).
 ewf = "0.2.1"
