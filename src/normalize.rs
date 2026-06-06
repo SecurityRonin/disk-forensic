@@ -72,7 +72,11 @@ pub fn mbr_findings(a: &mbr_forensic::MbrAnalysis) -> Vec<Finding> {
                     scope: "MBR".to_string(),
                     version: None,
                 })
-                .evidence_at("offset", format!("{:#x}", an.offset), Location::ByteOffset(an.offset))
+                .evidence_at(
+                    "offset",
+                    format!("{:#x}", an.offset),
+                    Location::ByteOffset(an.offset),
+                )
                 .build()
         })
         .collect()

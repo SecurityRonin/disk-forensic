@@ -25,6 +25,7 @@
 
 use std::io::{Read, Seek, SeekFrom};
 
+pub mod container;
 pub mod normalize;
 pub mod report;
 
