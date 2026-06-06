@@ -2,7 +2,9 @@
 //! [`forensicnomicon::report`] model, so disk4n6 (and a future GUI) render one
 //! uniform [`Report`] instead of N bespoke `XxxAnalysis` types.
 
-use forensicnomicon::report::{Category, Evidence, Finding, Location, Report, Severity, Source};
+use forensicnomicon::report::{
+    Category, Evidence, Finding, Location, Provenance, Report, Severity, Source,
+};
 
 use crate::DiskReport;
 
@@ -120,24 +122,87 @@ pub fn apm_findings(a: &apm_forensic::ApmAnalysis) -> Vec<Finding> {
         .collect()
 }
 
+/// Provenance breadcrumbs from an MBR analysis.
+#[must_use]
+pub fn mbr_provenance(a: &mbr_forensic::MbrAnalysis) -> Vec<Provenance> {
+    vec![
+        Provenance {
+            label: "boot code".to_string(),
+            value: format!("{:?}", a.boot_code_id),
+            source: "mbr-forensic".to_string(),
+        },
+        Provenance {
+            label: "partitioning era".to_string(),
+            value: format!("{:?}", a.era),
+            source: "mbr-forensic".to_string(),
+        },
+        Provenance {
+            label: "disk signature".to_string(),
+            value: format!("{:#010x}", a.disk_serial),
+            source: "mbr-forensic".to_string(),
+        },
+    ]
+}
+
+/// Provenance breadcrumbs from a GPT analysis.
+#[must_use]
+pub fn gpt_provenance(a: &gpt_forensic::GptAnalysis) -> Vec<Provenance> {
+    vec![
+        Provenance {
+            label: "disk GUID".to_string(),
+            value: a.disk_guid.to_string(),
+            source: "gpt-forensic".to_string(),
+        },
+        Provenance {
+            label: "sector size".to_string(),
+            value: format!("{} bytes", a.sector_size),
+            source: "gpt-forensic".to_string(),
+        },
+        Provenance {
+            label: "GPT SHA-256".to_string(),
+            value: a.gpt_sha256.clone(),
+            source: "gpt-forensic".to_string(),
+        },
+    ]
+}
+
+/// Provenance breadcrumbs from an APM analysis.
+#[must_use]
+pub fn apm_provenance(a: &apm_forensic::ApmAnalysis) -> Vec<Provenance> {
+    vec![
+        Provenance {
+            label: "block size".to_string(),
+            value: format!("{} bytes", a.block_size),
+            source: "apm-forensic".to_string(),
+        },
+        Provenance {
+            label: "device blocks".to_string(),
+            value: a.device_block_count.to_string(),
+            source: "apm-forensic".to_string(),
+        },
+    ]
+}
+
 /// Build the unified [`Report`] from a [`DiskReport`]. A GPT disk contributes
-/// both its protective-MBR findings and its parsed-GPT findings.
+/// both its protective-MBR and parsed-GPT findings and provenance.
 #[must_use]
 pub fn report(disk: &DiskReport) -> Report {
-    let findings = match disk {
-        DiskReport::Apm(a) => apm_findings(a),
-        DiskReport::Mbr(m) => mbr_findings(m),
+    let (findings, provenance) = match disk {
+        DiskReport::Apm(a) => (apm_findings(a), apm_provenance(a)),
+        DiskReport::Mbr(m) => (mbr_findings(m), mbr_provenance(m)),
         DiskReport::Gpt(m) => {
-            let mut v = mbr_findings(m);
+            let mut findings = mbr_findings(m);
+            let mut provenance = mbr_provenance(m);
             if let Some(gpt) = &m.gpt {
-                v.extend(gpt_findings(gpt));
+                findings.extend(gpt_findings(gpt));
+                provenance.extend(gpt_provenance(gpt));
             }
-            v
+            (findings, provenance)
         }
     };
     Report {
         findings,
-        provenance: Vec::new(),
+        provenance,
         timeline: Vec::new(),
     }
 }
