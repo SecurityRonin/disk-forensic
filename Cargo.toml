@@ -17,6 +17,8 @@ mbr-forensic = "0.3.0"
 gpt-forensic = "0.3.0"
 apm-forensic = "0.3.0"
 forensicnomicon = { version = "0.3.0", path = "../forensicnomicon" }
+# Container/image decoders (decode → Read+Seek view of the disk).
+ewf = { version = "0.2", path = "../ewf/ewf" }
 serde = { version = "1", features = ["derive"], optional = true }
 # JSON output for the `disk-forensic --json` binary (enabled by the serde feature).
 serde_json = { version = "1", optional = true }
