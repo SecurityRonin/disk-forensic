@@ -34,6 +34,23 @@ fn main() -> ExitCode {
     };
     let size = file.metadata().map(|m| m.len()).unwrap_or(0);
 
+    // Recognize a container wrapper (E01/VHD/VHDX/VMDK/QCOW2/AFF4/DMG) and refuse
+    // to mis-parse it as a raw disk. Decoding to a Read+Seek view is not yet wired.
+    match disk_forensic::container::sniff(&mut file) {
+        Ok(disk_forensic::container::ContainerFormat::Raw) => {}
+        Ok(fmt) => {
+            eprintln!(
+                "disk4n6: {path}: detected {fmt:?} container image — decode it to a raw image \
+                 first (container decoding not yet supported)"
+            );
+            return ExitCode::from(2);
+        }
+        Err(e) => {
+            eprintln!("disk4n6: {path}: {e}");
+            return ExitCode::from(2);
+        }
+    }
+
     let report = match disk_forensic::analyse_disk(&mut file, size) {
         Ok(r) => r,
         Err(e) => {

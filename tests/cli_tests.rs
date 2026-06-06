@@ -25,7 +25,11 @@ fn recognized_container_is_reported_not_misparsed() {
     data[..8].copy_from_slice(&[0x45, 0x56, 0x46, 0x09, 0x0D, 0x0A, 0xFF, 0x00]); // EVF1
     let p = write_tmp("ewf", &data);
     let out = bin().arg(&p).output().unwrap();
-    assert_eq!(out.status.code(), Some(2), "container is a usage-class error");
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "container is a usage-class error"
+    );
     assert!(
         String::from_utf8_lossy(&out.stderr)
             .to_lowercase()
