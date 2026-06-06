@@ -46,6 +46,13 @@ pub enum OpenError {
     /// EWF (E01) decoding failed.
     #[error("EWF decode error: {0}")]
     Ewf(String),
+    /// An optical (ISO 9660) image — a filesystem, not a partitioned disk;
+    /// analyse it with `iso9660-forensic` (FS dispatch is not yet wired here).
+    #[error(
+        "ISO 9660 optical image — a filesystem, not a partitioned disk; analyse it with \
+         iso9660-forensic (disk4n6 filesystem dispatch is not yet wired)"
+    )]
+    Optical,
     /// The container format is recognized but its decoder is not yet wired —
     /// decode it to a raw image first.
     #[error("{0:?} container decoding is not yet supported — decode it to a raw image first")]
@@ -82,12 +89,14 @@ pub fn open(path: &Path) -> Result<OpenedImage, OpenError> {
                 reader: Box::new(reader),
             })
         }
+        ContainerFormat::Iso => Err(OpenError::Optical),
         other => Err(OpenError::Unsupported(other)),
     }
 }
 
-/// Bytes read from the start for header-magic detection.
-const HEADER_SNIFF_BYTES: usize = 4096;
+/// Bytes read from the start for header-magic detection — large enough to reach
+/// the ISO 9660 PVD "CD001" at offset 32769.
+const HEADER_SNIFF_BYTES: usize = 34816;
 /// Bytes read from the end for footer/trailer-magic detection (VHD, DMG).
 const FOOTER_SNIFF_BYTES: u64 = 512;
 
@@ -111,6 +120,9 @@ pub enum ContainerFormat {
     Aff4,
     /// Apple Disk Image (UDIF).
     Dmg,
+    /// ISO 9660 optical-disc image (a filesystem, not a partitioned disk —
+    /// analysed by `iso9660-forensic` rather than the partition parsers).
+    Iso,
 }
 
 /// Sniff the container format from a disk image's `header` (its first bytes,
@@ -143,6 +155,12 @@ pub fn detect(header: &[u8], footer: &[u8]) -> ContainerFormat {
     }
     if header.starts_with(&aff4::ZIP_LOCAL_FILE_HEADER_MAGIC) {
         return ContainerFormat::Aff4;
+    }
+    // ── Optical (ISO 9660): "CD001" at the PVD, offset 32769 (ECMA-119) ───────
+    const ISO_PVD_OFFSET: usize = 32769;
+    if header.len() >= ISO_PVD_OFFSET + 5 && &header[ISO_PVD_OFFSET..ISO_PVD_OFFSET + 5] == b"CD001"
+    {
+        return ContainerFormat::Iso;
     }
     // ── Footer / trailer magics ──────────────────────────────────────────────
     if footer.starts_with(vhd::FOOTER_COOKIE) {
