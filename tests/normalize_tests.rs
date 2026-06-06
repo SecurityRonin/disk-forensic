@@ -17,7 +17,10 @@ fn report_of(disk: &[u8]) -> forensicnomicon::report::Report {
 fn normalizes_mbr_findings_with_source_and_evidence() {
     let r = report_of(&build_mbr());
     assert!(!r.findings.is_empty(), "an all-zero-boot MBR has anomalies");
-    assert!(r.findings.iter().all(|f| f.source.analyzer == "mbr-forensic"));
+    assert!(r
+        .findings
+        .iter()
+        .all(|f| f.source.analyzer == "mbr-forensic"));
     assert!(r.findings.iter().any(|f| f.code.starts_with("MBR-")));
     assert!(
         r.findings[0].evidence.iter().any(|e| e.field == "offset"),
@@ -31,7 +34,10 @@ fn normalizes_gpt_disk_attributing_protective_mbr_findings() {
     let r = report_of(&build_gpt());
     // A GPT disk's protective MBR yields mbr-forensic findings; the (clean) GPT
     // may add none. Every finding has a non-empty code + a valid source.
-    assert!(r.findings.iter().any(|f| f.source.analyzer == "mbr-forensic"));
+    assert!(r
+        .findings
+        .iter()
+        .any(|f| f.source.analyzer == "mbr-forensic"));
     assert!(r
         .findings
         .iter()
@@ -42,6 +48,9 @@ fn normalizes_gpt_disk_attributing_protective_mbr_findings() {
 fn normalizes_apm_attributing_to_apm_forensic() {
     let r = report_of(APM);
     // Real APM fixture is clean, but every finding (if any) attributes to apm.
-    assert!(r.findings.iter().all(|f| f.source.analyzer == "apm-forensic"));
+    assert!(r
+        .findings
+        .iter()
+        .all(|f| f.source.analyzer == "apm-forensic"));
     let _ = r.max_severity();
 }

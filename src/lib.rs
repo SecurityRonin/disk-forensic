@@ -25,6 +25,7 @@
 
 use std::io::{Read, Seek, SeekFrom};
 
+pub mod normalize;
 pub mod report;
 
 pub use forensicnomicon::partition_schemes::Scheme;
