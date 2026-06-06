@@ -65,6 +65,14 @@ fn detects_dmg_by_koly_trailer() {
 }
 
 #[test]
+fn detects_iso9660_by_cd001_at_pvd() {
+    // ECMA-119: the Primary Volume Descriptor's "CD001" sits at offset 32769.
+    let mut h = vec![0u8; 40000];
+    h[32769..32774].copy_from_slice(b"CD001");
+    assert_eq!(detect(&h, &[0u8; 512]), ContainerFormat::Iso);
+}
+
+#[test]
 fn raw_when_no_container_magic() {
     // A bare MBR/GPT/APM disk has no container wrapper.
     let mut h = vec![0u8; 1024];
