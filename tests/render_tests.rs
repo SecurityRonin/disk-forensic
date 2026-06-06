@@ -31,3 +31,16 @@ fn clean_report_renders_a_clean_line() {
     let text = render(&rep);
     assert!(text.to_lowercase().contains("clean") || text.contains("no findings"));
 }
+
+#[test]
+fn renders_provenance_breadcrumbs() {
+    let disk = build_mbr();
+    let dr = analyse_disk(&mut Cursor::new(&disk), disk.len() as u64).unwrap();
+    let rep = normalize::report(&dr);
+    let text = render(&rep);
+    assert!(text.contains("Provenance"), "provenance section missing:\n{text}");
+    // A specific breadcrumb (label + its source) is shown.
+    let p = &rep.provenance[0];
+    assert!(text.contains(&p.label), "breadcrumb label missing:\n{text}");
+    assert!(text.contains(&p.value), "breadcrumb value missing:\n{text}");
+}
