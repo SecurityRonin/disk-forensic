@@ -2,9 +2,7 @@
 //! [`forensicnomicon::report`] model, so disk4n6 (and a future GUI) render one
 //! uniform [`Report`] instead of N bespoke `XxxAnalysis` types.
 
-use forensicnomicon::report::{
-    Category, Evidence, Finding, Location, Provenance, Report, Severity, Source,
-};
+use forensicnomicon::report::{Category, Finding, Location, Provenance, Report, Severity, Source};
 
 use crate::DiskReport;
 
@@ -66,20 +64,16 @@ map_severity!(apm_sev, apm_forensic::Severity);
 pub fn mbr_findings(a: &mbr_forensic::MbrAnalysis) -> Vec<Finding> {
     a.anomalies
         .iter()
-        .map(|an| Finding {
-            severity: mbr_sev(an.severity),
-            category: classify(an.code),
-            code: an.code.to_string(),
-            note: an.note.clone(),
-            source: Source {
-                analyzer: "mbr-forensic".to_string(),
-                scope: "MBR".to_string(),
-            },
-            evidence: vec![Evidence {
-                field: "offset".to_string(),
-                value: format!("{:#x}", an.offset),
-                location: Some(Location::ByteOffset(an.offset)),
-            }],
+        .map(|an| {
+            Finding::observation(mbr_sev(an.severity), classify(an.code), an.code.to_string())
+                .note(an.note.clone())
+                .source(Source {
+                    analyzer: "mbr-forensic".to_string(),
+                    scope: "MBR".to_string(),
+                    version: None,
+                })
+                .evidence_at("offset", format!("{:#x}", an.offset), Location::ByteOffset(an.offset))
+                .build()
         })
         .collect()
 }
@@ -89,16 +83,15 @@ pub fn mbr_findings(a: &mbr_forensic::MbrAnalysis) -> Vec<Finding> {
 pub fn gpt_findings(a: &gpt_forensic::GptAnalysis) -> Vec<Finding> {
     a.anomalies
         .iter()
-        .map(|an| Finding {
-            severity: gpt_sev(an.severity),
-            category: classify(an.code),
-            code: an.code.to_string(),
-            note: an.note.clone(),
-            source: Source {
-                analyzer: "gpt-forensic".to_string(),
-                scope: "GPT".to_string(),
-            },
-            evidence: Vec::new(),
+        .map(|an| {
+            Finding::observation(gpt_sev(an.severity), classify(an.code), an.code.to_string())
+                .note(an.note.clone())
+                .source(Source {
+                    analyzer: "gpt-forensic".to_string(),
+                    scope: "GPT".to_string(),
+                    version: None,
+                })
+                .build()
         })
         .collect()
 }
@@ -108,16 +101,15 @@ pub fn gpt_findings(a: &gpt_forensic::GptAnalysis) -> Vec<Finding> {
 pub fn apm_findings(a: &apm_forensic::ApmAnalysis) -> Vec<Finding> {
     a.anomalies
         .iter()
-        .map(|an| Finding {
-            severity: apm_sev(an.severity),
-            category: classify(an.code),
-            code: an.code.to_string(),
-            note: an.note.clone(),
-            source: Source {
-                analyzer: "apm-forensic".to_string(),
-                scope: "APM".to_string(),
-            },
-            evidence: Vec::new(),
+        .map(|an| {
+            Finding::observation(apm_sev(an.severity), classify(an.code), an.code.to_string())
+                .note(an.note.clone())
+                .source(Source {
+                    analyzer: "apm-forensic".to_string(),
+                    scope: "APM".to_string(),
+                    version: None,
+                })
+                .build()
         })
         .collect()
 }
@@ -200,9 +192,8 @@ pub fn report(disk: &DiskReport) -> Report {
             (findings, provenance)
         }
     };
-    Report {
-        findings,
-        provenance,
-        timeline: Vec::new(),
-    }
+    let mut out = Report::default();
+    out.findings = findings;
+    out.provenance = provenance;
+    out
 }

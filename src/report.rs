@@ -32,7 +32,7 @@ pub fn render(report: &Report) -> String {
     } else {
         let _ = writeln!(s, "Forensic findings ({}):", report.findings.len());
         for sev in SEVERITY_ORDER {
-            let group = report.findings.iter().filter(|f| f.severity == sev);
+            let group = report.findings.iter().filter(|f| f.severity == Some(sev));
             let mut header_written = false;
             for f in group {
                 if !header_written {
