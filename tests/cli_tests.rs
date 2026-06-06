@@ -18,6 +18,25 @@ fn write_tmp(tag: &str, bytes: &[u8]) -> PathBuf {
 }
 
 #[test]
+fn recognized_container_is_reported_not_misparsed() {
+    // An E01 (EWF) wrapper must be recognized and reported, not blindly fed to
+    // the partition parsers.
+    let mut data = vec![0u8; 1024];
+    data[..8].copy_from_slice(&[0x45, 0x56, 0x46, 0x09, 0x0D, 0x0A, 0xFF, 0x00]); // EVF1
+    let p = write_tmp("ewf", &data);
+    let out = bin().arg(&p).output().unwrap();
+    assert_eq!(out.status.code(), Some(2), "container is a usage-class error");
+    assert!(
+        String::from_utf8_lossy(&out.stderr)
+            .to_lowercase()
+            .contains("container"),
+        "stderr should name it a container: {:?}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let _ = std::fs::remove_file(&p);
+}
+
+#[test]
 fn analyses_apm_image() {
     let out = bin().arg(APM_FIXTURE).output().unwrap();
     let s = String::from_utf8_lossy(&out.stdout);
