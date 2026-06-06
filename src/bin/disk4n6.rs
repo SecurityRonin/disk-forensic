@@ -61,6 +61,12 @@ fn main() -> ExitCode {
     } else {
         println!("Scheme: {:?}\n", report.scheme());
         print!("{}", disk_forensic::report::text_report(&report));
+        println!();
+        // Unified cross-scheme findings view (the normalized report model).
+        print!(
+            "{}",
+            disk_forensic::report::render(&disk_forensic::normalize::report(&report))
+        );
     }
 
     if report.has_anomalies() {

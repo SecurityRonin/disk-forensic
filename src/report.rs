@@ -1,9 +1,55 @@
-//! Human-readable text rendering of a [`DiskReport`].
+//! Human-readable text rendering for disk4n6.
 //!
-//! Each scheme already has a renderer in its own crate; this delegates to the
-//! right one so the unified CLI prints a scheme-appropriate report.
+//! [`render`] is the presentation of the normalized [`forensicnomicon::report::Report`]
+//! (the cross-scheme findings view). [`text_report`] renders the per-scheme
+//! structural detail; it currently delegates to each analyzer's renderer and is
+//! being migrated to render the native structs directly here.
+
+use core::fmt::Write as _;
+
+use forensicnomicon::report::{Report, Severity};
 
 use crate::DiskReport;
+
+/// Severities in descending order, for grouped rendering.
+const SEVERITY_ORDER: [Severity; 5] = [
+    Severity::Critical,
+    Severity::High,
+    Severity::Medium,
+    Severity::Low,
+    Severity::Info,
+];
+
+/// Render the normalized findings [`Report`] as a severity-grouped text block —
+/// the uniform cross-scheme view (a future GUI consumes the same `Report`).
+#[must_use]
+pub fn render(report: &Report) -> String {
+    let mut s = String::new();
+    if report.findings.is_empty() {
+        s.push_str("Findings: none (clean)\n");
+        return s;
+    }
+    let _ = writeln!(s, "Forensic findings ({}):", report.findings.len());
+    for sev in SEVERITY_ORDER {
+        let group = report.findings.iter().filter(|f| f.severity == sev);
+        let mut header_written = false;
+        for f in group {
+            if !header_written {
+                let _ = writeln!(s, "\n  [{sev}]");
+                header_written = true;
+            }
+            let _ = writeln!(
+                s,
+                "    {}  ({} / {}): {}",
+                f.code, f.source.analyzer, f.source.scope, f.note
+            );
+            for e in &f.evidence {
+                let _ = writeln!(s, "        {} = {}", e.field, e.value);
+            }
+        }
+    }
+    s
+}
 
 /// Render a disk analysis as a multi-line text report, showing the full detail
 /// from each scheme's own parser.

@@ -14,7 +14,10 @@ fn renders_findings_grouped_by_severity_with_source_and_evidence() {
 
     // A severity header for the highest finding present.
     let top = rep.max_severity().unwrap();
-    assert!(text.contains(&top.to_string()), "severity header missing:\n{text}");
+    assert!(
+        text.contains(&top.to_string()),
+        "severity header missing:\n{text}"
+    );
     // The first finding's code, source attribution, and offset evidence appear.
     let f = &rep.findings[0];
     assert!(text.contains(&f.code), "code missing:\n{text}");
