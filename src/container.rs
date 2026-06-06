@@ -6,7 +6,14 @@
 //! `forensicnomicon` knowledge modules (single source of truth). A flat raw/`dd`
 //! image has no wrapper and is analysed in place.
 
+use std::io::{Read, Seek, SeekFrom};
+
 use forensicnomicon::{aff4, dmg, ewf, qcow2, vhd, vhdx, vmdk};
+
+/// Bytes read from the start for header-magic detection.
+const HEADER_SNIFF_BYTES: usize = 4096;
+/// Bytes read from the end for footer/trailer-magic detection (VHD, DMG).
+const FOOTER_SNIFF_BYTES: u64 = 512;
 
 /// A detected disk-image container format.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -69,4 +76,31 @@ pub fn detect(header: &[u8], footer: &[u8]) -> ContainerFormat {
         return ContainerFormat::Dmg;
     }
     ContainerFormat::Raw
+}
+
+/// Sniff the container format of a seekable image: read its header and trailing
+/// footer, classify via [`detect`], and **rewind the reader to 0** for the
+/// caller. A sub-512-byte image is read without a footer.
+///
+/// # Errors
+/// Propagates any I/O error from seeking/reading the image.
+pub fn sniff<R: Read + Seek>(reader: &mut R) -> std::io::Result<ContainerFormat> {
+    let len = reader.seek(SeekFrom::End(0))?;
+
+    reader.seek(SeekFrom::Start(0))?;
+    let header_len = (len as usize).min(HEADER_SNIFF_BYTES);
+    let mut header = vec![0u8; header_len];
+    reader.read_exact(&mut header)?;
+
+    let footer = if len >= FOOTER_SNIFF_BYTES {
+        reader.seek(SeekFrom::End(-(FOOTER_SNIFF_BYTES as i64)))?;
+        let mut f = vec![0u8; FOOTER_SNIFF_BYTES as usize];
+        reader.read_exact(&mut f)?;
+        f
+    } else {
+        Vec::new()
+    };
+
+    reader.seek(SeekFrom::Start(0))?;
+    Ok(detect(&header, &footer))
 }

@@ -2,17 +2,14 @@
 
 use disk_forensic::container::{sniff, ContainerFormat};
 use forensicnomicon::{ewf, vhd};
-use std::io::{Cursor, Seek, SeekFrom};
+use std::io::{Cursor, Seek};
 
 #[test]
 fn sniffs_raw_disk() {
     let mut disk = vec![0u8; 4096];
     disk[510] = 0x55;
     disk[511] = 0xAA;
-    assert_eq!(
-        sniff(&mut Cursor::new(disk)).unwrap(),
-        ContainerFormat::Raw
-    );
+    assert_eq!(sniff(&mut Cursor::new(disk)).unwrap(), ContainerFormat::Raw);
 }
 
 #[test]
