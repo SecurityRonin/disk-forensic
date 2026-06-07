@@ -2,7 +2,7 @@
 //! [`forensicnomicon::report`] model, so disk4n6 (and a future GUI) render one
 //! uniform [`Report`] instead of N bespoke `XxxAnalysis` types.
 
-use forensicnomicon::report::{Category, Finding, Observation, Provenance, Report, Source, TimelineEvent};
+use forensicnomicon::report::{Finding, Observation, Provenance, Report, Source, TimelineEvent};
 
 use crate::DiskReport;
 
@@ -114,37 +114,12 @@ pub fn apm_provenance(a: &apm_forensic::ApmAnalysis) -> Vec<Provenance> {
     ]
 }
 
-/// Map `iso9660-forensic`'s own severity into the canonical one. Unlike the
-/// 0.4.0 partition analyzers, the published ISO crate predates the shared report
-/// model, so it carries a self-contained `Severity` we translate here.
-fn iso_sev(s: iso9660_forensic::findings::Severity) -> forensicnomicon::report::Severity {
-    use forensicnomicon::report::Severity as F;
-    use iso9660_forensic::findings::Severity as I;
-    match s {
-        I::Info => F::Info,
-        I::Low => F::Low,
-        I::Medium => F::Medium,
-        I::High => F::High,
-        I::Critical => F::Critical,
-    }
-}
-
-/// Normalize an ISO 9660 analysis into findings.
+/// Normalize an ISO 9660 analysis into findings via the shared [`Observation`]
+/// trait (iso9660-forensic 0.5.0 onward re-exports `report::Severity` and
+/// implements `Observation`, like the rest of the fleet).
 #[must_use]
 pub fn iso_findings(a: &iso9660_forensic::IsoAnalysis) -> Vec<Finding> {
-    a.anomalies
-        .iter()
-        .map(|an| {
-            Finding::observation(iso_sev(an.severity), Category::from_code(an.code), an.code.to_string())
-                .note(an.note.clone())
-                .source(Source {
-                    analyzer: "iso9660-forensic".to_string(),
-                    scope: "ISO 9660".to_string(),
-                    version: None,
-                })
-                .build()
-        })
-        .collect()
+    findings_of(&a.anomalies, "iso9660-forensic", "ISO 9660")
 }
 
 /// Provenance breadcrumbs from an ISO 9660 volume. Temporal facts (creation,
