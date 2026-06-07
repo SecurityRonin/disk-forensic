@@ -43,9 +43,9 @@ pub enum OpenError {
     /// I/O failure opening or reading the file.
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
-    /// EWF (E01) decoding failed.
-    #[error("EWF decode error: {0}")]
-    Ewf(String),
+    /// A recognized container's decoder failed (corrupt/unsupported variant).
+    #[error("{0:?} decode error: {1}")]
+    Decode(ContainerFormat, String),
     /// An optical (ISO 9660) image — a filesystem, not a partitioned disk;
     /// analyse it with `iso9660-forensic` (FS dispatch is not yet wired here).
     #[error(
@@ -64,8 +64,9 @@ pub enum OpenError {
 /// containers return [`OpenError::Unsupported`].
 ///
 /// # Errors
-/// [`OpenError::Io`] on a read failure, [`OpenError::Ewf`] on a bad E01, or
-/// [`OpenError::Unsupported`] for a container whose decoder is not yet wired.
+/// [`OpenError::Io`] on a read failure, [`OpenError::Decode`] on a corrupt
+/// image, or [`OpenError::Unsupported`] for a container whose decoder is not yet
+/// wired.
 pub fn open(path: &Path) -> Result<OpenedImage, OpenError> {
     let mut file = File::open(path)?;
     let format = sniff(&mut file)?;
@@ -81,8 +82,22 @@ pub fn open(path: &Path) -> Result<OpenedImage, OpenError> {
         ContainerFormat::Ewf => {
             // `ewf` (imported) is forensicnomicon's magic module; the decoder is
             // the external `ewf` crate, reached via the absolute path.
-            let reader = ::ewf::EwfReader::open(path).map_err(|e| OpenError::Ewf(e.to_string()))?;
+            let reader = ::ewf::EwfReader::open(path)
+                .map_err(|e| OpenError::Decode(format, e.to_string()))?;
             let size = reader.total_size();
+            Ok(OpenedImage {
+                format,
+                size,
+                reader: Box::new(reader),
+            })
+        }
+        ContainerFormat::Vmdk => {
+            // `vmdk` (imported) is forensicnomicon's magic module; the decoder is
+            // the external `vmdk` crate, reached via the absolute path. The chain
+            // reader resolves any snapshot/delta extents to the base image.
+            let reader = ::vmdk::VmdkChainReader::open(path)
+                .map_err(|e| OpenError::Decode(format, e.to_string()))?;
+            let size = reader.virtual_disk_size();
             Ok(OpenedImage {
                 format,
                 size,

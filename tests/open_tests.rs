@@ -43,13 +43,15 @@ fn opens_raw_image_in_place() {
 
 #[test]
 fn unsupported_container_is_reported() {
-    let p = std::env::temp_dir().join(format!("df_open_{}_vmdk.img", std::process::id()));
+    // AFF4 (ZIP-based) has no decoder crate yet — it must be recognized and
+    // reported as unsupported, not misparsed.
+    let p = std::env::temp_dir().join(format!("df_open_{}_aff4.img", std::process::id()));
     let mut data = vec![0u8; 1024];
-    data[..4].copy_from_slice(&forensicnomicon::vmdk::VMDK4_MAGIC.to_le_bytes());
+    data[..4].copy_from_slice(&forensicnomicon::aff4::ZIP_LOCAL_FILE_HEADER_MAGIC);
     std::fs::write(&p, &data).unwrap();
     let err = open(&p).unwrap_err();
     assert!(
-        matches!(err, OpenError::Unsupported(ContainerFormat::Vmdk)),
+        matches!(err, OpenError::Unsupported(ContainerFormat::Aff4)),
         "got {err:?}"
     );
     let _ = std::fs::remove_file(&p);
