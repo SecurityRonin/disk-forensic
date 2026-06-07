@@ -52,7 +52,6 @@ impl Read for QcowView {
         let mut r = self.qcow.reader(&mut self.file);
         r.seek(SeekFrom::Start(self.pos))?;
         let n = r.read(buf)?;
-        drop(r);
         self.pos += n as u64;
         Ok(n)
     }
@@ -66,6 +65,43 @@ impl Seek for QcowView {
                 let end = self.qcow.reader(&mut self.file).seek(SeekFrom::End(0))?;
                 end as i64 + o
             }
+            SeekFrom::Current(o) => self.pos as i64 + o,
+        };
+        if np < 0 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "seek before start of disk",
+            ));
+        }
+        self.pos = np as u64;
+        Ok(self.pos)
+    }
+}
+
+/// Owning `Read + Seek` adapter for the `vhdx` crate, whose `reader()` borrows
+/// `&mut self`. We own the parsed image and rebuild a short-lived reader per
+/// call, tracking the logical position ourselves. Disk size is read via the
+/// reader's `End` seek (the crate exposes no size accessor).
+struct VhdxView {
+    vhdx: ::vhdx::Vhdx,
+    pos: u64,
+}
+
+impl Read for VhdxView {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let mut r = self.vhdx.reader();
+        r.seek(SeekFrom::Start(self.pos))?;
+        let n = r.read(buf)?;
+        self.pos += n as u64;
+        Ok(n)
+    }
+}
+
+impl Seek for VhdxView {
+    fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
+        let np: i64 = match pos {
+            SeekFrom::Start(o) => o as i64,
+            SeekFrom::End(o) => self.vhdx.reader().seek(SeekFrom::End(0))? as i64 + o,
             SeekFrom::Current(o) => self.pos as i64 + o,
         };
         if np < 0 {
@@ -160,6 +196,23 @@ pub fn open(path: &Path) -> Result<OpenedImage, OpenError> {
                 file,
                 pos: 0,
             };
+            let size = view.seek(SeekFrom::End(0))?;
+            view.seek(SeekFrom::Start(0))?;
+            Ok(OpenedImage {
+                format,
+                size,
+                reader: Box::new(view),
+            })
+        }
+        ContainerFormat::Vhdx => {
+            // The `vhdx` crate's `load()` panics on a malformed image instead of
+            // returning an error — guard it so a bad image is a clean Decode
+            // error, not a process abort.
+            let p = path.to_path_buf();
+            let vhdx = std::panic::catch_unwind(move || ::vhdx::Vhdx::load(p)).map_err(|_| {
+                OpenError::Decode(format, "VHDX parsing failed (malformed image)".to_string())
+            })?;
+            let mut view = VhdxView { vhdx, pos: 0 };
             let size = view.seek(SeekFrom::End(0))?;
             view.seek(SeekFrom::Start(0))?;
             Ok(OpenedImage {

@@ -21,6 +21,7 @@ forensicnomicon = "0.3.1"
 ewf = "0.2.1"
 vmdk = "0.5.1"
 qcow = "1.2.0"
+vhdx = "0.1.0"
 serde = { version = "1", features = ["derive"], optional = true }
 # JSON output for the `disk-forensic --json` binary (enabled by the serde feature).
 serde_json = { version = "1", optional = true }
