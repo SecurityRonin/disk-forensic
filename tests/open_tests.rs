@@ -61,6 +61,19 @@ fn opens_and_analyses_fixed_vhd_as_mbr() {
     assert_eq!(report.scheme(), Scheme::Mbr);
 }
 
+const DMG: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/df.dmg");
+
+#[test]
+fn opens_and_analyses_dmg_as_mbr() {
+    // A real hdiutil UDZO DMG over an MBR disk — udif exposes the image as blkx
+    // entries; open() reconstructs the whole disk and analyses it.
+    let mut opened = open(Path::new(DMG)).unwrap();
+    assert_eq!(opened.format, ContainerFormat::Dmg);
+    assert_eq!(opened.size, 1024 * 1024, "reconstructed disk size");
+    let report = analyse_disk(&mut opened.reader, opened.size).unwrap();
+    assert_eq!(report.scheme(), Scheme::Mbr);
+}
+
 const QCOW2: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/df.qcow2");
 
 #[test]
