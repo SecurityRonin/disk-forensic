@@ -8,40 +8,9 @@ use forensicnomicon::report::{
 
 use crate::DiskReport;
 
-/// Coarse forensic category derived from a finding's stable code. A pragmatic
-/// first pass (keyword-based); refined per-analyzer over time.
-fn classify(code: &str) -> Category {
-    let c = code.to_ascii_uppercase();
-    if c.contains("CRC") || c.contains("INTEGRITY") {
-        Category::Integrity
-    } else if c.contains("OVERLAP")
-        || c.contains("OOB")
-        || c.contains("BOUND")
-        || c.contains("CHS")
-        || c.contains("MAP-COUNT")
-    {
-        Category::Structure
-    } else if c.contains("RESIDUAL")
-        || c.contains("SLACK")
-        || c.contains("GAP")
-        || c.contains("CARVE")
-        || c.contains("UNMAPPED")
-        || c.contains("ZEROLEN")
-    {
-        Category::Residue
-    } else if c.contains("HIDDEN")
-        || c.contains("CONCEAL")
-        || c.contains("WIPED")
-        || c.contains("ERASED")
-        || c.contains("PROTECTIVE")
-    {
-        Category::Concealment
-    } else if c.contains("BOOT") {
-        Category::Threat
-    } else {
-        Category::Structure
-    }
-}
+// Findings are categorized with the canonical `Category::from_code` from
+// forensicnomicon — the single source of truth for the code→category taxonomy,
+// shared with every analyzer rather than re-derived here.
 
 // Since 0.4.0 every analyzer re-exports `forensicnomicon::report::Severity` as
 // its own `Severity`, so an anomaly's severity is already the canonical type —
@@ -53,7 +22,7 @@ pub fn mbr_findings(a: &mbr_forensic::MbrAnalysis) -> Vec<Finding> {
     a.anomalies
         .iter()
         .map(|an| {
-            Finding::observation(an.severity, classify(an.code), an.code.to_string())
+            Finding::observation(an.severity, Category::from_code(an.code), an.code.to_string())
                 .note(an.note.clone())
                 .source(Source {
                     analyzer: "mbr-forensic".to_string(),
@@ -76,7 +45,7 @@ pub fn gpt_findings(a: &gpt_forensic::GptAnalysis) -> Vec<Finding> {
     a.anomalies
         .iter()
         .map(|an| {
-            Finding::observation(an.severity, classify(an.code), an.code.to_string())
+            Finding::observation(an.severity, Category::from_code(an.code), an.code.to_string())
                 .note(an.note.clone())
                 .source(Source {
                     analyzer: "gpt-forensic".to_string(),
@@ -94,7 +63,7 @@ pub fn apm_findings(a: &apm_forensic::ApmAnalysis) -> Vec<Finding> {
     a.anomalies
         .iter()
         .map(|an| {
-            Finding::observation(an.severity, classify(an.code), an.code.to_string())
+            Finding::observation(an.severity, Category::from_code(an.code), an.code.to_string())
                 .note(an.note.clone())
                 .source(Source {
                     analyzer: "apm-forensic".to_string(),
@@ -188,7 +157,7 @@ pub fn iso_findings(a: &iso9660_forensic::IsoAnalysis) -> Vec<Finding> {
     a.anomalies
         .iter()
         .map(|an| {
-            Finding::observation(iso_sev(an.severity), classify(an.code), an.code.to_string())
+            Finding::observation(iso_sev(an.severity), Category::from_code(an.code), an.code.to_string())
                 .note(an.note.clone())
                 .source(Source {
                     analyzer: "iso9660-forensic".to_string(),
