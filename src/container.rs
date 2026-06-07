@@ -204,6 +204,17 @@ pub fn open(path: &Path) -> Result<OpenedImage, OpenError> {
                 reader: Box::new(view),
             })
         }
+        ContainerFormat::Vhd => {
+            // Hand-rolled decoder (no crate): handles fixed + dynamic subformats.
+            let reader = crate::vhd::VhdReader::open(File::open(path)?)
+                .map_err(|e| OpenError::Decode(format, e.to_string()))?;
+            let size = reader.virtual_size();
+            Ok(OpenedImage {
+                format,
+                size,
+                reader: Box::new(reader),
+            })
+        }
         ContainerFormat::Vhdx => {
             // The `vhdx` crate's `load()` panics on a malformed image instead of
             // returning an error — guard it so a bad image is a clean Decode
