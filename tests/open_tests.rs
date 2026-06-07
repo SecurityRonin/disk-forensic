@@ -86,6 +86,29 @@ fn opens_and_analyses_dmg_as_mbr() {
     assert_eq!(report.scheme(), Scheme::Mbr);
 }
 
+const NTFS_VMDK: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/ntfs.vmdk");
+
+#[test]
+fn vmdk_with_real_ntfs_fingerprints_the_partition() {
+    // A genuine NTFS volume — the boot region (real $Boot/BPB, OEM "NTFS    ")
+    // from the DEF CON DFIR CTF 2018 image, re-based onto a compact 64 MiB disk
+    // with real Windows MBR boot code — wrapped in a sparse VMDK. Exercises the
+    // whole stack against real data: VMDK decode → MBR parse → VBR fingerprint.
+    let mut opened = open(Path::new(NTFS_VMDK)).unwrap();
+    assert_eq!(opened.format, ContainerFormat::Vmdk);
+    let report = analyse_disk(&mut opened.reader, opened.size).unwrap();
+    assert_eq!(report.scheme(), Scheme::Mbr);
+    let disk_forensic::DiskReport::Mbr(a) = report else {
+        panic!("expected an MBR disk");
+    };
+    assert!(
+        a.partitions
+            .iter()
+            .any(|p| matches!(p.detected_fs, Some(mbr_forensic::DetectedFs::Ntfs))),
+        "the real NTFS partition should be fingerprinted as NTFS"
+    );
+}
+
 const QCOW2: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/df.qcow2");
 
 #[test]
