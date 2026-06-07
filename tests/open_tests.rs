@@ -23,6 +23,18 @@ fn opens_and_analyses_vmdk_as_mbr() {
     assert_eq!(report.scheme(), Scheme::Mbr);
 }
 
+const VHDX: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/df.vhdx");
+
+#[test]
+fn opens_and_analyses_vhdx_as_mbr() {
+    // A real qemu-img VHDX wrapping an MBR disk.
+    let mut opened = open(Path::new(VHDX)).unwrap();
+    assert_eq!(opened.format, ContainerFormat::Vhdx);
+    assert_eq!(opened.size, 1024 * 1024, "decoded virtual disk size");
+    let report = analyse_disk(&mut opened.reader, opened.size).unwrap();
+    assert_eq!(report.scheme(), Scheme::Mbr);
+}
+
 const QCOW2: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/df.qcow2");
 
 #[test]
