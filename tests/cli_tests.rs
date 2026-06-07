@@ -10,6 +10,18 @@ fn bin() -> Command {
 }
 
 const APM_FIXTURE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/apm.bin");
+const ISO_FIXTURE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/df.iso");
+
+#[test]
+fn analyses_iso_filesystem_image() {
+    // disk4n6 routes an ISO 9660 image to the filesystem analyzer and reports its
+    // volume — not a partition-scheme error.
+    let out = bin().arg(ISO_FIXTURE).output().unwrap();
+    let s = String::from_utf8_lossy(&out.stdout);
+    assert!(s.contains("ISO 9660"), "stdout: {s}");
+    assert!(s.contains("DFTEST"), "should show the volume label: {s}");
+    assert!(out.status.success(), "clean ISO should exit 0");
+}
 
 fn write_tmp(tag: &str, bytes: &[u8]) -> PathBuf {
     let p = std::env::temp_dir().join(format!("df_e2e_{}_{tag}.img", std::process::id()));

@@ -61,6 +61,18 @@ fn opens_and_analyses_fixed_vhd_as_mbr() {
     assert_eq!(report.scheme(), Scheme::Mbr);
 }
 
+const ISO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/df.iso");
+
+#[test]
+fn opens_iso_as_filesystem_passthrough() {
+    // An ISO 9660 image needs no container decoding — it IS a flat filesystem
+    // image, so open() returns it as a passthrough reader tagged Iso; disk4n6
+    // routes it to the filesystem analyzer instead of the partition parsers.
+    let opened = open(Path::new(ISO)).unwrap();
+    assert_eq!(opened.format, ContainerFormat::Iso);
+    assert!(opened.size > 0);
+}
+
 const DMG: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/df.dmg");
 
 #[test]
