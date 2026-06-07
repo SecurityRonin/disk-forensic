@@ -124,13 +124,6 @@ pub enum OpenError {
     /// A recognized container's decoder failed (corrupt/unsupported variant).
     #[error("{0:?} decode error: {1}")]
     Decode(ContainerFormat, String),
-    /// An optical (ISO 9660) image — a filesystem, not a partitioned disk;
-    /// analyse it with `iso9660-forensic` (FS dispatch is not yet wired here).
-    #[error(
-        "ISO 9660 optical image — a filesystem, not a partitioned disk; analyse it with \
-         iso9660-forensic (disk4n6 filesystem dispatch is not yet wired)"
-    )]
-    Optical,
     /// The container format is recognized but its decoder is not yet wired —
     /// decode it to a raw image first.
     #[error("{0:?} container decoding is not yet supported — decode it to a raw image first")]
@@ -241,7 +234,17 @@ pub fn open(path: &Path) -> Result<OpenedImage, OpenError> {
                 reader: Box::new(std::io::Cursor::new(bytes)),
             })
         }
-        ContainerFormat::Iso => Err(OpenError::Optical),
+        ContainerFormat::Iso => {
+            // An ISO 9660 image needs no container decoding — it is a flat
+            // filesystem image. Pass the file through; disk4n6 routes the `Iso`
+            // format to the filesystem analyzer instead of the partition parsers.
+            let size = file.metadata()?.len();
+            Ok(OpenedImage {
+                format,
+                size,
+                reader: Box::new(file),
+            })
+        }
         other => Err(OpenError::Unsupported(other)),
     }
 }

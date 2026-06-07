@@ -16,6 +16,8 @@ thiserror = "2"
 mbr-forensic = "0.4.0"
 gpt-forensic = "0.4.0"
 apm-forensic = "0.4.0"
+# Filesystem analyzer for optical (ISO 9660) images — disk4n6's FS dimension.
+iso9660-forensic = "0.4.0"
 forensicnomicon = "0.3.1"
 # Container/image decoders (decode → Read+Seek view of the disk).
 ewf = "0.2.1"
@@ -36,6 +38,7 @@ serde = [
     "mbr-forensic/serde",
     "apm-forensic/serde",
     "gpt-forensic/serde",
+    "iso9660-forensic/serde",
     "forensicnomicon/serde",
 ]
 

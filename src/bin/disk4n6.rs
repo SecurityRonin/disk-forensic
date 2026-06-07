@@ -6,6 +6,51 @@
 
 use std::process::ExitCode;
 
+/// Analyse an optical (ISO 9660) filesystem image and render its report.
+fn analyse_filesystem(
+    path: &str,
+    reader: &mut Box<dyn disk_forensic::container::ReadSeek>,
+    json: bool,
+) -> ExitCode {
+    let analysis = match iso9660_forensic::analyse(reader) {
+        Ok(a) => a,
+        Err(e) => {
+            eprintln!("disk4n6: {path}: {e}");
+            return ExitCode::FAILURE;
+        }
+    };
+
+    if json {
+        #[cfg(feature = "serde")]
+        {
+            match serde_json::to_string_pretty(&analysis) {
+                Ok(s) => println!("{s}"),
+                Err(e) => {
+                    eprintln!("disk4n6: JSON error: {e}");
+                    return ExitCode::FAILURE;
+                }
+            }
+        }
+        #[cfg(not(feature = "serde"))]
+        {
+            eprintln!("disk4n6: --json requires the `serde` feature");
+            return ExitCode::from(2);
+        }
+    } else {
+        println!("Filesystem: ISO 9660\n");
+        print!(
+            "{}",
+            disk_forensic::report::render(&disk_forensic::normalize::iso_report(&analysis))
+        );
+    }
+
+    if analysis.anomalies.is_empty() {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
+    }
+}
+
 fn main() -> ExitCode {
     let mut json = false;
     let mut path: Option<String> = None;
@@ -40,6 +85,12 @@ fn main() -> ExitCode {
             return ExitCode::from(2);
         }
     };
+
+    // Optical (ISO 9660) images are filesystems, not partitioned disks — route
+    // them to the filesystem analyzer and render the same normalized report.
+    if opened.format == disk_forensic::container::ContainerFormat::Iso {
+        return analyse_filesystem(&path, &mut opened.reader, json);
+    }
 
     let report = match disk_forensic::analyse_disk(&mut opened.reader, opened.size) {
         Ok(r) => r,
