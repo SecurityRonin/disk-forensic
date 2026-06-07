@@ -121,10 +121,13 @@ fn main() -> ExitCode {
         print!("{}", disk_forensic::report::text_report(&report));
         println!();
         // Unified cross-scheme findings view (the normalized report model).
-        print!(
-            "{}",
-            disk_forensic::report::render(&disk_forensic::normalize::report(&report))
-        );
+        // Container-level findings (e.g. VMDK forensic anomalies) fold in here so
+        // they sit alongside the partition/filesystem findings, severity-grouped.
+        let mut normalized = disk_forensic::normalize::report(&report);
+        normalized
+            .findings
+            .extend(std::mem::take(&mut opened.findings));
+        print!("{}", disk_forensic::report::render(&normalized));
     }
 
     if report.has_anomalies() {
