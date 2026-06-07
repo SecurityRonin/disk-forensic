@@ -29,6 +29,24 @@ fn write_tmp(tag: &str, bytes: &[u8]) -> PathBuf {
     p
 }
 
+const DF_VMDK: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/df.vmdk");
+
+#[test]
+fn vmdk_container_findings_appear_in_report() {
+    // A VMDK with the uncleanShutdown byte set must surface VMDK-UNCLEAN-SHUTDOWN
+    // in disk4n6's normalized report — the container-level finding aggregates
+    // alongside the partition findings, not dropped at the container boundary.
+    let mut bytes = std::fs::read(DF_VMDK).unwrap();
+    bytes[72] = 1;
+    let p = write_tmp("vmdk_unclean", &bytes);
+    let out = bin().arg(&p).output().unwrap();
+    let s = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        s.contains("VMDK-UNCLEAN-SHUTDOWN"),
+        "container finding appears in the rendered report:\n{s}"
+    );
+}
+
 #[test]
 fn unsupported_container_is_reported_not_misparsed() {
     // A not-yet-decodable container (AFF4) must be recognized and reported, not
