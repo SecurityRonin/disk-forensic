@@ -10,6 +10,18 @@ const E01: &str = concat!(
     "/tests/data/gpt_130_partitions.E01"
 );
 const APM: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/apm.bin");
+const VMDK: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/df.vmdk");
+
+#[test]
+fn opens_and_analyses_vmdk_as_mbr() {
+    // A real qemu-img VMDK (monolithicSparse) wrapping an MBR disk — decode the
+    // sparse extents, then the partition analysis runs over the decoded media.
+    let mut opened = open(Path::new(VMDK)).unwrap();
+    assert_eq!(opened.format, ContainerFormat::Vmdk);
+    assert_eq!(opened.size, 1024 * 1024, "decoded virtual disk size");
+    let report = analyse_disk(&mut opened.reader, opened.size).unwrap();
+    assert_eq!(report.scheme(), Scheme::Mbr);
+}
 
 #[test]
 fn opens_and_analyses_e01_as_gpt() {
