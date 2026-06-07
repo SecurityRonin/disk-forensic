@@ -232,9 +232,44 @@ pub fn open(path: &Path) -> Result<OpenedImage, OpenError> {
                 reader: Box::new(view),
             })
         }
+        ContainerFormat::Dmg => {
+            let bytes =
+                decode_dmg(path).map_err(|e| OpenError::Decode(format, e.to_string()))?;
+            Ok(OpenedImage {
+                format,
+                size: bytes.len() as u64,
+                reader: Box::new(std::io::Cursor::new(bytes)),
+            })
+        }
         ContainerFormat::Iso => Err(OpenError::Optical),
         other => Err(OpenError::Unsupported(other)),
     }
+}
+
+/// Reconstruct a whole DMG (UDIF) disk image in memory. The `udif` crate exposes
+/// a DMG as ordered blkx entries (MBR, free gaps, partitions) rather than a
+/// single disk view, so we concatenate them in disk order; sparse `Apple_Free`
+/// entries (no compressed bytes) become zero-fill. Unlike the streaming
+/// decoders this buffers the entire disk in memory — a limitation of the crate's
+/// partition-oriented API.
+fn decode_dmg(path: &Path) -> std::io::Result<Vec<u8>> {
+    let to_io =
+        |e: ::udif::DppError| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string());
+    let mut archive = ::udif::DmgArchive::open(path).map_err(to_io)?;
+    let parts = archive.partitions();
+    let mut disk = Vec::new();
+    for p in &parts {
+        let want = p.size as usize;
+        if p.compressed_size == 0 {
+            // Free / unallocated space stored sparsely → zero-fill.
+            disk.resize(disk.len() + want, 0);
+        } else {
+            let mut data = archive.extract_partition(p.id).map_err(to_io)?;
+            data.resize(want, 0);
+            disk.append(&mut data);
+        }
+    }
+    Ok(disk)
 }
 
 /// Bytes read from the start for header-magic detection — large enough to reach
