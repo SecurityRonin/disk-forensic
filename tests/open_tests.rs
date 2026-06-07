@@ -35,6 +35,32 @@ fn opens_and_analyses_vhdx_as_mbr() {
     assert_eq!(report.scheme(), Scheme::Mbr);
 }
 
+// qemu rounds a VHD's virtual size up to CHS geometry, so both subformats decode
+// to 1_079_296 bytes (not the 1 MiB raw source). Verified against the real footer.
+const VHD_VIRTUAL_SIZE: u64 = 1_079_296;
+const VHD_DYNAMIC: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/df-dynamic.vhd");
+const VHD_FIXED: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/df-fixed.vhd");
+
+#[test]
+fn opens_and_analyses_dynamic_vhd_as_mbr() {
+    // A real qemu-img dynamic VHD (footer + cxsparse header + BAT) over an MBR.
+    let mut opened = open(Path::new(VHD_DYNAMIC)).unwrap();
+    assert_eq!(opened.format, ContainerFormat::Vhd);
+    assert_eq!(opened.size, VHD_VIRTUAL_SIZE);
+    let report = analyse_disk(&mut opened.reader, opened.size).unwrap();
+    assert_eq!(report.scheme(), Scheme::Mbr);
+}
+
+#[test]
+fn opens_and_analyses_fixed_vhd_as_mbr() {
+    // A real qemu-img fixed VHD (raw data + trailing footer) over an MBR.
+    let mut opened = open(Path::new(VHD_FIXED)).unwrap();
+    assert_eq!(opened.format, ContainerFormat::Vhd);
+    assert_eq!(opened.size, VHD_VIRTUAL_SIZE);
+    let report = analyse_disk(&mut opened.reader, opened.size).unwrap();
+    assert_eq!(report.scheme(), Scheme::Mbr);
+}
+
 const QCOW2: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/df.qcow2");
 
 #[test]
