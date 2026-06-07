@@ -68,10 +68,9 @@ canonical `Category::from_code`, so disk4n6 renders one uniform view.
 
 `tests/iso_normalize_tests.rs` checks the ISO provenance completeness and the
 reconstructed timeline against the real `df.iso` volume (system/mastering id,
-session count, Rock Ridge owners, and the create/authoring-window events). It
-asserts timeline events by **structure** — present, attributed, and datable
-(`when.is_some()`) — never by literal timestamp value: those are an incidental
-artifact of when the fixture was mastered and carry no forensic meaning here.
+session count, Rock Ridge owners, and the create/authoring-window events),
+asserting timeline events by **structure** — present, attributed, and datable
+(`when.is_some()`) — never by literal timestamp value.
 
 **Known boundary:** uniform per-finding byte-offset evidence is only produced for
 MBR, because only `mbr-forensic` exposes a top-level `Anomaly.offset`. GPT/APM/ISO

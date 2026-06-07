@@ -85,11 +85,10 @@ Provenance:
   Rock Ridge owners: uids [501], gids [0]  (iso9660-forensic)
 ```
 
-A **Timeline** section follows, merging the PVD created/modified stamps with the
-file-recorded-time authoring window. The specific timestamps carry no
-significance — normalization just surfaces whatever the medium recorded; on real
-media these diverge into a span you can reason about (a file dated *after* its
-volume, or in the future, becomes a finding).
+A **Timeline** section then reconstructs the volume's authoring window from the
+PVD and file-recorded times — on real media these diverge into a span you can
+reason about (a file dated *after* its own volume, or in the future, becomes a
+finding).
 
 ## Rust library
 
