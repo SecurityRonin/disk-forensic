@@ -177,11 +177,20 @@ pub fn open(path: &Path) -> Result<OpenedImage, OpenError> {
             let reader = ::vmdk::VmdkChainReader::open(path)
                 .map_err(|e| OpenError::Decode(format, e.to_string()))?;
             let size = reader.virtual_disk_size();
+            // Run the VMDK forensic analyzer over the same path so its findings
+            // (RGD mismatch, dangling pointers, unclean shutdown, FTP-mangling)
+            // aggregate into the report. A failed analysis must not fail the open —
+            // the disk view is still usable — so it degrades to no findings.
+            let findings = File::open(path)
+                .ok()
+                .map(vmdk_forensic::VmdkIntegrity::new)
+                .and_then(|mut i| i.analyse().ok())
+                .unwrap_or_default();
             Ok(OpenedImage {
                 format,
                 size,
                 reader: Box::new(reader),
-                findings: Vec::new(),
+                findings,
             })
         }
         ContainerFormat::Qcow2 => {
