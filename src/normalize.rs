@@ -2,7 +2,9 @@
 //! [`forensicnomicon::report`] model, so disk4n6 (and a future GUI) render one
 //! uniform [`Report`] instead of N bespoke `XxxAnalysis` types.
 
-use forensicnomicon::report::{Category, Finding, Location, Provenance, Report, Source};
+use forensicnomicon::report::{
+    Category, Finding, Location, Provenance, Report, Source, TimelineEvent,
+};
 
 use crate::DiskReport;
 
@@ -198,48 +200,79 @@ pub fn iso_findings(a: &iso9660_forensic::IsoAnalysis) -> Vec<Finding> {
         .collect()
 }
 
-/// Provenance breadcrumbs from an ISO 9660 volume.
+/// Provenance breadcrumbs from an ISO 9660 volume. Temporal facts (creation,
+/// modification, authoring window) are normalized into the [`iso_timeline`]
+/// instead; empty PVD strings are dropped rather than emitted as noise.
 #[must_use]
 pub fn iso_provenance(a: &iso9660_forensic::IsoAnalysis) -> Vec<Provenance> {
     let v = &a.volume;
-    let mut p = vec![
-        Provenance {
-            label: "volume label".to_string(),
-            value: v.volume_label.clone(),
-            source: "iso9660-forensic".to_string(),
-        },
-        Provenance {
-            label: "data preparer".to_string(),
-            value: v.data_preparer_id.clone(),
-            source: "iso9660-forensic".to_string(),
-        },
-        Provenance {
-            label: "application".to_string(),
-            value: v.application_id.clone(),
-            source: "iso9660-forensic".to_string(),
-        },
-        Provenance {
-            label: "sector mode".to_string(),
-            value: v.sector_mode.clone(),
-            source: "iso9660-forensic".to_string(),
-        },
-        Provenance {
-            label: "extensions".to_string(),
-            value: format!(
-                "Rock Ridge: {}, Joliet: {}",
-                v.has_rock_ridge, v.has_joliet
-            ),
-            source: "iso9660-forensic".to_string(),
-        },
+    let mut entries: Vec<(&str, String)> = vec![
+        ("volume label", v.volume_label.clone()),
+        ("system identifier", v.system_id.clone()),
+        ("volume set", v.volume_set_id.clone()),
+        ("publisher", v.publisher_id.clone()),
+        ("data preparer", v.data_preparer_id.clone()),
+        ("application", v.application_id.clone()),
+        ("sector mode", v.sector_mode.clone()),
+        (
+            "extensions",
+            format!("Rock Ridge: {}, Joliet: {}", v.has_rock_ridge, v.has_joliet),
+        ),
+        ("sessions", v.session_count.to_string()),
     ];
-    if let Some(t) = &v.creation_time {
-        p.push(Provenance {
-            label: "volume created".to_string(),
-            value: t.clone(),
-            source: "iso9660-forensic".to_string(),
-        });
+    if v.has_enhanced_volume_descriptor {
+        entries.push(("enhanced volume descriptor", "present".to_string()));
     }
-    p
+    if !v.rock_ridge_uids.is_empty() || !v.rock_ridge_gids.is_empty() {
+        entries.push((
+            "Rock Ridge owners",
+            format!("uids {:?}, gids {:?}", v.rock_ridge_uids, v.rock_ridge_gids),
+        ));
+    }
+    if !v.boot_entries.is_empty() {
+        let platforms: Vec<&str> = v.boot_entries.iter().map(|b| b.platform.as_str()).collect();
+        entries.push((
+            "El Torito boot",
+            format!("{} entries ({})", v.boot_entries.len(), platforms.join(", ")),
+        ));
+    }
+    entries
+        .into_iter()
+        .filter(|(_, value)| !value.is_empty())
+        .map(|(label, value)| Provenance {
+            label: label.to_string(),
+            value,
+            source: "iso9660-forensic".to_string(),
+        })
+        .collect()
+}
+
+/// Reconstruct the volume's datable biography from an ISO 9660 analysis: the
+/// PVD creation/modification stamps and the file-recorded-time authoring window.
+#[must_use]
+pub fn iso_timeline(a: &iso9660_forensic::IsoAnalysis) -> Vec<TimelineEvent> {
+    let v = &a.volume;
+    [
+        (&v.creation_time, "ISO 9660 volume created"),
+        (&v.modification_time, "ISO 9660 volume last modified"),
+        (
+            &v.earliest_file_time,
+            "earliest file recorded time (authoring window start)",
+        ),
+        (
+            &v.latest_file_time,
+            "latest file recorded time (authoring window end)",
+        ),
+    ]
+    .into_iter()
+    .filter_map(|(when, event)| {
+        when.as_ref().map(|w| TimelineEvent {
+            when: Some(w.clone()),
+            source: "iso9660-forensic".to_string(),
+            event: event.to_string(),
+        })
+    })
+    .collect()
 }
 
 /// Build the unified [`Report`] from an ISO 9660 analysis.
@@ -248,6 +281,7 @@ pub fn iso_report(a: &iso9660_forensic::IsoAnalysis) -> Report {
     let mut out = Report::default();
     out.findings = iso_findings(a);
     out.provenance = iso_provenance(a);
+    out.timeline = iso_timeline(a);
     out
 }
 
