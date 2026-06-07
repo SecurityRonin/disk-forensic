@@ -37,6 +37,48 @@ impl core::fmt::Debug for OpenedImage {
     }
 }
 
+/// Owning `Read + Seek` adapter for the `qcow` crate, whose reader borrows *both*
+/// the parsed image and the backing file. We own both and rebuild a short-lived
+/// borrowed reader per call (disjoint field borrows), tracking the logical
+/// position ourselves. QCOW2 only — legacy QCOW1 is rejected at `open()`.
+struct QcowView {
+    qcow: ::qcow::Qcow2,
+    file: File,
+    pos: u64,
+}
+
+impl Read for QcowView {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let mut r = self.qcow.reader(&mut self.file);
+        r.seek(SeekFrom::Start(self.pos))?;
+        let n = r.read(buf)?;
+        drop(r);
+        self.pos += n as u64;
+        Ok(n)
+    }
+}
+
+impl Seek for QcowView {
+    fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
+        let np: i64 = match pos {
+            SeekFrom::Start(o) => o as i64,
+            SeekFrom::End(o) => {
+                let end = self.qcow.reader(&mut self.file).seek(SeekFrom::End(0))?;
+                end as i64 + o
+            }
+            SeekFrom::Current(o) => self.pos as i64 + o,
+        };
+        if np < 0 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "seek before start of disk",
+            ));
+        }
+        self.pos = np as u64;
+        Ok(self.pos)
+    }
+}
+
 /// Failure opening/decoding an image.
 #[derive(Debug, thiserror::Error)]
 pub enum OpenError {
@@ -102,6 +144,28 @@ pub fn open(path: &Path) -> Result<OpenedImage, OpenError> {
                 format,
                 size,
                 reader: Box::new(reader),
+            })
+        }
+        ContainerFormat::Qcow2 => {
+            let mut file = File::open(path)?;
+            let dq = ::qcow::load(&mut file).map_err(|e| OpenError::Decode(format, e.to_string()))?;
+            if dq.version() == 1 {
+                return Err(OpenError::Decode(
+                    format,
+                    "legacy QCOW1 is not supported".to_string(),
+                ));
+            }
+            let mut view = QcowView {
+                qcow: dq.unwrap_qcow2(),
+                file,
+                pos: 0,
+            };
+            let size = view.seek(SeekFrom::End(0))?;
+            view.seek(SeekFrom::Start(0))?;
+            Ok(OpenedImage {
+                format,
+                size,
+                reader: Box::new(view),
             })
         }
         ContainerFormat::Iso => Err(OpenError::Optical),
