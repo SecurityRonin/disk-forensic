@@ -23,6 +23,19 @@ fn opens_and_analyses_vmdk_as_mbr() {
     assert_eq!(report.scheme(), Scheme::Mbr);
 }
 
+const QCOW2: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/df.qcow2");
+
+#[test]
+fn opens_and_analyses_qcow2_as_mbr() {
+    // A real qemu-img QCOW2 (v3) wrapping an MBR disk — decode the cluster
+    // mapping, then partition analysis runs over the decoded media.
+    let mut opened = open(Path::new(QCOW2)).unwrap();
+    assert_eq!(opened.format, ContainerFormat::Qcow2);
+    assert_eq!(opened.size, 1024 * 1024, "decoded virtual disk size");
+    let report = analyse_disk(&mut opened.reader, opened.size).unwrap();
+    assert_eq!(report.scheme(), Scheme::Mbr);
+}
+
 #[test]
 fn opens_and_analyses_e01_as_gpt() {
     // A real GPT disk wrapped in E01 — decode, then the partition analysis runs
