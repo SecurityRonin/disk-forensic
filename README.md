@@ -83,12 +83,13 @@ Provenance:
   extensions: Rock Ridge: true, Joliet: true  (iso9660-forensic)
   sessions: 1  (iso9660-forensic)
   Rock Ridge owners: uids [501], gids [0]  (iso9660-forensic)
-
-Timeline:
-  [2026-06-07 02:52:10] ISO 9660 volume created  (iso9660-forensic)
-  [2026-06-07 02:52:10] earliest file recorded time (authoring window start)  (iso9660-forensic)
-  [2026-06-07 02:52:10] latest file recorded time (authoring window end)  (iso9660-forensic)
 ```
+
+A **Timeline** section follows, merging the PVD created/modified stamps with the
+file-recorded-time authoring window. The specific timestamps carry no
+significance — normalization just surfaces whatever the medium recorded; on real
+media these diverge into a span you can reason about (a file dated *after* its
+volume, or in the future, becomes a finding).
 
 ## Rust library
 
