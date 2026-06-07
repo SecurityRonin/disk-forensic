@@ -63,8 +63,9 @@ error rather than silently producing wrong output.
 
 An ISO is a filesystem, not a partitioned disk, so `disk4n6` routes it to
 [`iso9660-forensic`](https://github.com/SecurityRonin/iso9660-forensic) and
-renders the same normalized findings/provenance view — volume provenance,
-extensions, mastering-tool fingerprints, and structural anomalies:
+renders the same normalized findings / provenance / **timeline** view — volume
+identity, mastering-tool fingerprint, Rock Ridge authoring owners, structural
+anomalies, and the reconstructed authoring window:
 
 ```console
 $ disk4n6 image.iso
@@ -77,9 +78,16 @@ Findings: none (clean)
 
 Provenance:
   volume label: DFTEST  (iso9660-forensic)
+  system identifier: APPLE INC., TYPE: 0002  (iso9660-forensic)
   sector mode: Iso2048  (iso9660-forensic)
   extensions: Rock Ridge: true, Joliet: true  (iso9660-forensic)
-  volume created: 2026-06-07 02:52:10  (iso9660-forensic)
+  sessions: 1  (iso9660-forensic)
+  Rock Ridge owners: uids [501], gids [0]  (iso9660-forensic)
+
+Timeline:
+  [2026-06-07 02:52:10] ISO 9660 volume created  (iso9660-forensic)
+  [2026-06-07 02:52:10] earliest file recorded time (authoring window start)  (iso9660-forensic)
+  [2026-06-07 02:52:10] latest file recorded time (authoring window end)  (iso9660-forensic)
 ```
 
 ## Rust library

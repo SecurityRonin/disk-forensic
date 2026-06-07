@@ -52,6 +52,29 @@ This validates filesystem fingerprinting at the partition level. `disk-forensic`
 does not parse NTFS internals (`$MFT`, etc.) — that is a filesystem analyzer's
 job — so the fixture is a boot-region slice, not a fully mountable volume.
 
+## Report normalization
+
+Every layer is normalized into the shared
+[`forensicnomicon::report`](https://github.com/SecurityRonin/forensicnomicon)
+model (`Report { findings, provenance, timeline }`), categorized with the
+canonical `Category::from_code`, so disk4n6 renders one uniform view.
+
+| Layer | Findings | Provenance | Timeline | Finding evidence offset |
+|---|---|---|---|---|
+| MBR | ✅ | ✅ | — (no datable events) | ✅ (`offset`) |
+| GPT | ✅ | ✅ | — (no datable events) | ✗ — analyzer exposes no uniform offset |
+| APM | ✅ | ✅ | — (no datable events) | ✗ — analyzer exposes no uniform offset |
+| ISO 9660 | ✅ | ✅ (full volume + Rock Ridge authoring intel) | ✅ (PVD create/modify + authoring window) | ✗ — offsets are per-`AnomalyKind` |
+
+`tests/iso_normalize_tests.rs` checks the ISO provenance completeness and the
+reconstructed timeline against the real `df.iso` volume (system/mastering id,
+session count, Rock Ridge owners, and the create/authoring-window events).
+
+**Known boundary:** uniform per-finding byte-offset evidence is only produced for
+MBR, because only `mbr-forensic` exposes a top-level `Anomaly.offset`. GPT/APM/ISO
+bury offsets inside individual `AnomalyKind` variants; surfacing them uniformly
+requires those analyzer crates to expose an offset, not a per-variant match here.
+
 ## Safety properties
 
 - `#![forbid(unsafe_code)]` (enforced via `[lints.rust]`).
