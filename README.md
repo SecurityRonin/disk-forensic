@@ -6,86 +6,131 @@
 [![CI](https://github.com/SecurityRonin/disk-forensic/actions/workflows/ci.yml/badge.svg)](https://github.com/SecurityRonin/disk-forensic/actions)
 [![Sponsor](https://img.shields.io/badge/sponsor-h4x0r-ea4aaa?logo=github-sponsors)](https://github.com/sponsors/h4x0r)
 
-**Point it at any disk image — it identifies the partitioning scheme (MBR, GPT, or Apple Partition Map) and runs the right forensic parser.** One command, one dependency, no guessing which crate to reach for.
+**Point `disk4n6` at any disk image or forensic container — E01, VMDK, VHDX, VHD, QCOW2, DMG, raw `dd`, or an ISO — and it decodes the wrapper, identifies the partitioning scheme (MBR / GPT / APM), and runs the right forensic parser.** No carving out a raw image first, no guessing which tool to reach for.
 
 ## See it work in 30 seconds
 
 ```console
 $ cargo install disk-forensic   # crate: disk-forensic, binary: disk4n6
-$ disk4n6 disk.img
+$ disk4n6 evidence.E01          # an EnCase image straight off the shelf
 ```
 
 ```text
-Scheme: Apm
+Scheme: Gpt
 
-APM Forensic Analysis
-  block size     : 512 bytes
-  device blocks  : 6144
+MBR Forensic Analysis
+  disk signature : 0x00000000
+  boot code      : AllZeros
+  partitioning   : Unknown
 
-Partition map (2 entries):
-  [0] Apple                Apple_partition_map      blocks          1..=63
-  [1] disk image           Apple_HFS                blocks         64..=6143
+Partition table (1 entries):
+  [0] GPT Protective MBR       LBA            1..=409599        fs=Unknown
 
-Anomalies: none
+GPT cross-check: 131 GPT partition entries
 
-Highest severity: none (clean)
+GPT Forensic Analysis
+================================================================================
+Disk GUID:       9D71FE48-F2FB-43F1-9326-36644D4D4E70
+Revision:        1.0
 ```
 
-Hand it an MBR disk and you get the MBR report; a GPT disk and you get the GPT
-cross-check — the same binary, auto-detected. Exit code is `0` when clean and
-`1` when any anomaly is present, so it drops straight into a triage pipeline.
-Add `--json` (with `--features serde`) for machine-readable output.
+That E01 was decoded, the protective MBR cross-checked, and the GPT parsed — one
+command, no intermediate files. Exit code is `0` when clean and `1` when any
+anomaly is present, so it drops straight into a triage pipeline. Add `--json`
+(build with `--features serde`) for machine-readable output.
 
-## Why a separate crate
+## Feed it almost any image — the wrapper is detected by content, not extension
 
-Each partitioning scheme has its own focused, dependency-light parser. This crate
-is **pure orchestration**: it reads the boot area, classifies the scheme using the
-cited magics in [`forensicnomicon`](https://github.com/SecurityRonin/forensicnomicon),
-and delegates every real parse to the matching sibling. You depend on one crate
-and get all three schemes; the parsers stay independently usable.
+`disk4n6` sniffs the container magic, decodes it to a `Read + Seek` view of the
+raw disk, and analyses that. Rename a `.vmdk` to `.bin` and it still works.
+
+| Input | Handling |
+|---|---|
+| Raw / `dd` | analysed in place |
+| **E01 / EWF** (EnCase) | decoded |
+| **VMDK** (VMware) | decoded — follows snapshot/delta extent chains to the base image |
+| **VHDX** (Hyper-V) | decoded |
+| **VHD** (Virtual PC, fixed + dynamic) | decoded (built-in) |
+| **QCOW2** (QEMU/KVM) | decoded |
+| **DMG** (Apple UDIF) | decoded |
+| **ISO 9660** (optical) | routed to filesystem analysis (see below) |
+| AFF4 | recognised, but decode to raw first — decoder not yet wired |
+
+A corrupt or unsupported-variant container fails **loud** with a clear decode
+error rather than silently producing wrong output.
+
+## Optical media gets a filesystem report
+
+An ISO is a filesystem, not a partitioned disk, so `disk4n6` routes it to
+[`iso9660-forensic`](https://github.com/SecurityRonin/iso9660-forensic) and
+renders the same normalized findings/provenance view — volume provenance,
+extensions, mastering-tool fingerprints, and structural anomalies:
+
+```console
+$ disk4n6 image.iso
+```
+
+```text
+Filesystem: ISO 9660
+
+Findings: none (clean)
+
+Provenance:
+  volume label: DFTEST  (iso9660-forensic)
+  sector mode: Iso2048  (iso9660-forensic)
+  extensions: Rock Ridge: true, Joliet: true  (iso9660-forensic)
+  volume created: 2026-06-07 02:52:10  (iso9660-forensic)
+```
 
 ## Rust library
 
 ```toml
 [dependencies]
-disk-forensic = "0.1"
+disk-forensic = "0.5"
 ```
 
 ```rust
 use std::fs::File;
 
-let mut img = File::open("disk.img")?;
-let size = img.metadata()?.len();
+// Decode whatever container the evidence arrived in, then analyse the disk.
+let opened = disk_forensic::container::open(std::path::Path::new("evidence.E01"))?;
+let mut img = opened.reader;
 
-match disk_forensic::analyse_disk(&mut img, size)? {
+match disk_forensic::analyse_disk(&mut img, opened.size)? {
     disk_forensic::DiskReport::Gpt(a) => println!("GPT: {} partitions", a.partitions.len()),
     disk_forensic::DiskReport::Mbr(a) => println!("MBR: {} partitions", a.partitions.len()),
     disk_forensic::DiskReport::Apm(a) => println!("APM: {} partitions", a.partitions.len()),
 }
-# Ok::<(), disk_forensic::Error>(())
+# Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
-It takes any `Read + Seek`, so it composes with the container crates (`ewf`,
-`vhd`, `vmdk`, …) — analyse E01/VHD/VMDK evidence without first carving out a raw
-image. A disk with no recognised scheme (e.g. a filesystem written directly to
-the media) returns [`Error::UnknownScheme`] rather than mis-parsing.
+`analyse_disk` takes any `Read + Seek`, so you can also feed it a raw image
+directly. A disk with no recognised scheme (e.g. a filesystem written straight to
+the media) returns [`Error::UnknownScheme`] rather than mis-parsing. Each
+analyzer normalizes into the shared
+[`forensicnomicon::report`](https://github.com/SecurityRonin/forensicnomicon)
+model, so findings and provenance render uniformly across every scheme and the
+ISO filesystem layer.
 
 ## The scheme parsers
 
-`disk-forensic` is the front door to three sibling crates — use them directly when
-you already know the scheme, or through this crate when you don't:
+`disk-forensic` is pure orchestration — it classifies the scheme using the cited
+magics in [`forensicnomicon`](https://github.com/SecurityRonin/forensicnomicon)
+and delegates every real parse to a focused, dependency-light sibling. Use them
+directly when you already know the scheme, or through this crate when you don't:
 
 | Crate | Scheme |
 |---|---|
-| [`mbr-forensic`](https://github.com/SecurityRonin/mbr-forensic) | Master Boot Record (legacy BIOS; also detects the protective-MBR/GPT case) |
-| [`gpt-forensic`](https://github.com/SecurityRonin/gpt-forensic) | GUID Partition Table (UEFI) — CRC32 integrity, primary/backup reconciliation |
-| [`apm-forensic`](https://github.com/SecurityRonin/apm-forensic) | Apple Partition Map (classic Mac and hybrid optical media) |
+| [`mbr-forensic`](https://github.com/SecurityRonin/mbr-forensic) | Master Boot Record — boot-code fingerprinting, gap/slack carving, **per-partition VBR filesystem fingerprinting**, protective-MBR/GPT detection |
+| [`gpt-forensic`](https://github.com/SecurityRonin/gpt-forensic) | GUID Partition Table — CRC32 integrity, primary/backup reconciliation |
+| [`apm-forensic`](https://github.com/SecurityRonin/apm-forensic) | Apple Partition Map — classic Mac and hybrid optical media |
 
 ## Design
 
-- **Dependency-light** — only `thiserror` plus the four sibling crates; no parsing logic of its own.
-- **`#![forbid(unsafe_code)]`**, fuzz-tested (`cargo fuzz`) against crafted/corrupted input, **100% function coverage**.
-- **Secure by default** — one auto-detecting entry point means a caller cannot pick the wrong parser for a disk.
+- **Secure by default** — one auto-detecting entry point: a caller cannot pick the wrong decoder or parser for a disk, and the zero-config path is the correct one.
+- **Fails loud** — a corrupt container or unknown scheme returns a typed error; it never emits silently wrong output.
+- **`#![forbid(unsafe_code)]`** and fuzz-tested (`cargo fuzz`) against crafted/corrupted input.
+- **Validated against real images**, not just synthetic fixtures — real EnCase/qemu/hdiutil containers and a genuine NTFS volume from a public CTF disk. See [`docs/VALIDATION.md`](docs/VALIDATION.md).
 
 ---
 

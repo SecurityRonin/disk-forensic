@@ -1,26 +1,29 @@
 //! # disk-forensic
 //!
-//! Point it at any disk image and it identifies the partitioning scheme — MBR,
-//! GPT, or Apple Partition Map — and dispatches to the matching forensic parser,
-//! so you get the right structural analysis without choosing a crate up front.
+//! Point it at any disk image — raw or wrapped in a forensic container — and it
+//! decodes the container, identifies the partitioning scheme (MBR, GPT, or Apple
+//! Partition Map), and dispatches to the matching forensic parser, so you get the
+//! right structural analysis without choosing a crate up front.
 //!
-//! It is pure orchestration: scheme detection comes from the
+//! [`container::open`] sniffs the wrapper by content and decodes E01/EWF, VMDK,
+//! VHDX, VHD, QCOW2, and DMG to a `Read + Seek` view of the raw disk; ISO 9660
+//! optical images are a filesystem rather than a partitioned disk and are routed
+//! to [`iso9660_forensic`]. Everything else is pure orchestration: scheme
+//! detection comes from the
 //! [`forensicnomicon`](https://docs.rs/forensicnomicon) knowledge base, and every
 //! real parse is delegated to a sibling crate
-//! ([`mbr_forensic`], [`gpt_forensic`], [`apm_forensic`]). Like them, it works
-//! over any `Read + Seek`, so it composes with the container crates (`ewf`,
-//! `vhd`, …) for E01/VHD/VMDK evidence.
+//! ([`mbr_forensic`], [`gpt_forensic`], [`apm_forensic`]).
 //!
 //! ```no_run
-//! use std::fs::File;
-//! let mut img = File::open("disk.img")?;
-//! let size = img.metadata()?.len();
-//! match disk_forensic::analyse_disk(&mut img, size)? {
+//! // Decode whatever container the evidence arrived in, then analyse the disk.
+//! let opened = disk_forensic::container::open(std::path::Path::new("evidence.E01"))?;
+//! let mut img = opened.reader;
+//! match disk_forensic::analyse_disk(&mut img, opened.size)? {
 //!     disk_forensic::DiskReport::Gpt(a) => println!("GPT, {} partitions", a.partitions.len()),
 //!     disk_forensic::DiskReport::Mbr(a) => println!("MBR, {} partitions", a.partitions.len()),
 //!     disk_forensic::DiskReport::Apm(a) => println!("APM, {} partitions", a.partitions.len()),
 //! }
-//! # Ok::<(), disk_forensic::Error>(())
+//! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
 use std::io::{Read, Seek, SeekFrom};
