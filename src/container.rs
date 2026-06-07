@@ -10,6 +10,7 @@ use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 
+use forensicnomicon::report::Finding;
 use forensicnomicon::{aff4, dmg, ewf, qcow2, vhd, vhdx, vmdk};
 
 /// Anything that can be both read and seeked — the disk view `analyse_disk`
@@ -26,6 +27,11 @@ pub struct OpenedImage {
     pub size: u64,
     /// A `Read + Seek` view of the decoded disk, ready for `analyse_disk`.
     pub reader: Box<dyn ReadSeek>,
+    /// Container-level forensic findings (e.g. VMDK redundant-GD / dangling-pointer
+    /// / provenance anomalies), surfaced so they aggregate into the normalized
+    /// report alongside the partition/filesystem findings. Empty for containers
+    /// without a forensic analyzer.
+    pub findings: Vec<Finding>,
 }
 
 impl core::fmt::Debug for OpenedImage {
@@ -148,6 +154,7 @@ pub fn open(path: &Path) -> Result<OpenedImage, OpenError> {
                 format,
                 size,
                 reader: Box::new(file),
+                findings: Vec::new(),
             })
         }
         ContainerFormat::Ewf => {
@@ -160,6 +167,7 @@ pub fn open(path: &Path) -> Result<OpenedImage, OpenError> {
                 format,
                 size,
                 reader: Box::new(reader),
+                findings: Vec::new(),
             })
         }
         ContainerFormat::Vmdk => {
@@ -173,6 +181,7 @@ pub fn open(path: &Path) -> Result<OpenedImage, OpenError> {
                 format,
                 size,
                 reader: Box::new(reader),
+                findings: Vec::new(),
             })
         }
         ContainerFormat::Qcow2 => {
@@ -195,6 +204,7 @@ pub fn open(path: &Path) -> Result<OpenedImage, OpenError> {
                 format,
                 size,
                 reader: Box::new(view),
+                findings: Vec::new(),
             })
         }
         ContainerFormat::Vhd => {
@@ -206,6 +216,7 @@ pub fn open(path: &Path) -> Result<OpenedImage, OpenError> {
                 format,
                 size,
                 reader: Box::new(reader),
+                findings: Vec::new(),
             })
         }
         ContainerFormat::Vhdx => {
@@ -223,6 +234,7 @@ pub fn open(path: &Path) -> Result<OpenedImage, OpenError> {
                 format,
                 size,
                 reader: Box::new(view),
+                findings: Vec::new(),
             })
         }
         ContainerFormat::Dmg => {
@@ -232,6 +244,7 @@ pub fn open(path: &Path) -> Result<OpenedImage, OpenError> {
                 format,
                 size: bytes.len() as u64,
                 reader: Box::new(std::io::Cursor::new(bytes)),
+                findings: Vec::new(),
             })
         }
         ContainerFormat::Iso => {
@@ -243,6 +256,7 @@ pub fn open(path: &Path) -> Result<OpenedImage, OpenError> {
                 format,
                 size,
                 reader: Box::new(file),
+                findings: Vec::new(),
             })
         }
         other => Err(OpenError::Unsupported(other)),

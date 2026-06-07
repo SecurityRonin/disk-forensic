@@ -44,6 +44,7 @@ serde = [
 
 [dev-dependencies]
 serde_json = "1"
+tempfile = "3"
 
 [lints.rust]
 unsafe_code = "forbid"
