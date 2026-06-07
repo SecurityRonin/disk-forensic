@@ -2,11 +2,29 @@
 //! [`forensicnomicon::report`] model, so disk4n6 (and a future GUI) render one
 //! uniform [`Report`] instead of N bespoke `XxxAnalysis` types.
 
-use forensicnomicon::report::{
-    Category, Finding, Location, Provenance, Report, Source, TimelineEvent,
-};
+use forensicnomicon::report::{Category, Finding, Observation, Provenance, Report, Source, TimelineEvent};
 
 use crate::DiskReport;
+
+/// Convert an analyzer's anomalies into canonical findings via the
+/// [`Observation`] trait — the conversion (severity, category, note, evidence,
+/// MITRE, confidence) lives in `forensicnomicon`, not duplicated here.
+fn findings_of<'a, O: Observation + 'a>(
+    anomalies: impl IntoIterator<Item = &'a O>,
+    analyzer: &str,
+    scope: &str,
+) -> Vec<Finding> {
+    anomalies
+        .into_iter()
+        .map(|an| {
+            an.to_finding(Source {
+                analyzer: analyzer.to_string(),
+                scope: scope.to_string(),
+                version: None,
+            })
+        })
+        .collect()
+}
 
 // Findings are categorized with the canonical `Category::from_code` from
 // forensicnomicon — the single source of truth for the code→category taxonomy,
@@ -16,63 +34,23 @@ use crate::DiskReport;
 // its own `Severity`, so an anomaly's severity is already the canonical type —
 // no per-scheme translation is needed.
 
-/// Normalize an MBR analysis. Findings carry their byte offset as evidence.
+/// Normalize an MBR analysis. Findings carry their byte offset as evidence
+/// (sourced from the analyzer's `Observation::evidence`).
 #[must_use]
 pub fn mbr_findings(a: &mbr_forensic::MbrAnalysis) -> Vec<Finding> {
-    a.anomalies
-        .iter()
-        .map(|an| {
-            Finding::observation(an.severity, Category::from_code(an.code), an.code.to_string())
-                .note(an.note.clone())
-                .source(Source {
-                    analyzer: "mbr-forensic".to_string(),
-                    scope: "MBR".to_string(),
-                    version: None,
-                })
-                .evidence_at(
-                    "offset",
-                    format!("{:#x}", an.offset),
-                    Location::ByteOffset(an.offset),
-                )
-                .build()
-        })
-        .collect()
+    findings_of(&a.anomalies, "mbr-forensic", "MBR")
 }
 
 /// Normalize a GPT analysis.
 #[must_use]
 pub fn gpt_findings(a: &gpt_forensic::GptAnalysis) -> Vec<Finding> {
-    a.anomalies
-        .iter()
-        .map(|an| {
-            Finding::observation(an.severity, Category::from_code(an.code), an.code.to_string())
-                .note(an.note.clone())
-                .source(Source {
-                    analyzer: "gpt-forensic".to_string(),
-                    scope: "GPT".to_string(),
-                    version: None,
-                })
-                .build()
-        })
-        .collect()
+    findings_of(&a.anomalies, "gpt-forensic", "GPT")
 }
 
 /// Normalize an Apple Partition Map analysis.
 #[must_use]
 pub fn apm_findings(a: &apm_forensic::ApmAnalysis) -> Vec<Finding> {
-    a.anomalies
-        .iter()
-        .map(|an| {
-            Finding::observation(an.severity, Category::from_code(an.code), an.code.to_string())
-                .note(an.note.clone())
-                .source(Source {
-                    analyzer: "apm-forensic".to_string(),
-                    scope: "APM".to_string(),
-                    version: None,
-                })
-                .build()
-        })
-        .collect()
+    findings_of(&a.anomalies, "apm-forensic", "APM")
 }
 
 /// Provenance breadcrumbs from an MBR analysis.

@@ -13,9 +13,9 @@ exclude = ["fuzz/", ".github/", "deny.toml", "renovate.json", ".pre-commit-confi
 [dependencies]
 thiserror = "2"
 # Sibling scheme parsers (one per partitioning scheme) and the knowledge base.
-mbr-forensic = "0.4.0"
-gpt-forensic = "0.4.0"
-apm-forensic = "0.4.0"
+mbr-forensic = "0.4.1"
+gpt-forensic = "0.4.1"
+apm-forensic = "0.4.1"
 # Filesystem analyzer for optical (ISO 9660) images — disk4n6's FS dimension.
 iso9660-forensic = "0.4.0"
 forensicnomicon = "0.3.1"
