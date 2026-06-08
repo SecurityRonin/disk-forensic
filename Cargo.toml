@@ -25,7 +25,7 @@ vmdk = "0.6.0"
 # VMDK forensic analyzer — its analyse() findings aggregate into the report.
 vmdk-forensic = "0.6.0"
 qcow = "1.2.0"
-vhdx = "0.1.0"
+vhdx = { version = "0.2.0", package = "vhdx-core" }
 udif = "0.3.4"
 serde = { version = "1", features = ["derive"], optional = true }
 # JSON output for the `disk-forensic --json` binary (enabled by the serde feature).
