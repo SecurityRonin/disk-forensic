@@ -37,79 +37,79 @@ fn findings_of<'a, O: Observation + 'a>(
 /// Normalize an MBR analysis. Findings carry their byte offset as evidence
 /// (sourced from the analyzer's `Observation::evidence`).
 #[must_use]
-pub fn mbr_findings(a: &mbr_forensic::MbrAnalysis) -> Vec<Finding> {
-    findings_of(&a.anomalies, "mbr-forensic", "MBR")
+pub fn mbr_findings(a: &mbr_partition_forensic::MbrAnalysis) -> Vec<Finding> {
+    findings_of(&a.anomalies, "mbr-partition-forensic", "MBR")
 }
 
 /// Normalize a GPT analysis.
 #[must_use]
-pub fn gpt_findings(a: &gpt_forensic::GptAnalysis) -> Vec<Finding> {
-    findings_of(&a.anomalies, "gpt-forensic", "GPT")
+pub fn gpt_findings(a: &gpt_partition_forensic::GptAnalysis) -> Vec<Finding> {
+    findings_of(&a.anomalies, "gpt-partition-forensic", "GPT")
 }
 
 /// Normalize an Apple Partition Map analysis.
 #[must_use]
-pub fn apm_findings(a: &apm_forensic::ApmAnalysis) -> Vec<Finding> {
-    findings_of(&a.anomalies, "apm-forensic", "APM")
+pub fn apm_findings(a: &apm_partition_forensic::ApmAnalysis) -> Vec<Finding> {
+    findings_of(&a.anomalies, "apm-partition-forensic", "APM")
 }
 
 /// Provenance breadcrumbs from an MBR analysis.
 #[must_use]
-pub fn mbr_provenance(a: &mbr_forensic::MbrAnalysis) -> Vec<Provenance> {
+pub fn mbr_provenance(a: &mbr_partition_forensic::MbrAnalysis) -> Vec<Provenance> {
     vec![
         Provenance {
             label: "boot code".to_string(),
             value: format!("{:?}", a.boot_code_id),
-            source: "mbr-forensic".to_string(),
+            source: "mbr-partition-forensic".to_string(),
         },
         Provenance {
             label: "partitioning era".to_string(),
             value: format!("{:?}", a.era),
-            source: "mbr-forensic".to_string(),
+            source: "mbr-partition-forensic".to_string(),
         },
         Provenance {
             label: "disk signature".to_string(),
             value: format!("{:#010x}", a.disk_serial),
-            source: "mbr-forensic".to_string(),
+            source: "mbr-partition-forensic".to_string(),
         },
     ]
 }
 
 /// Provenance breadcrumbs from a GPT analysis.
 #[must_use]
-pub fn gpt_provenance(a: &gpt_forensic::GptAnalysis) -> Vec<Provenance> {
+pub fn gpt_provenance(a: &gpt_partition_forensic::GptAnalysis) -> Vec<Provenance> {
     vec![
         Provenance {
             label: "disk GUID".to_string(),
             value: a.disk_guid.to_string(),
-            source: "gpt-forensic".to_string(),
+            source: "gpt-partition-forensic".to_string(),
         },
         Provenance {
             label: "sector size".to_string(),
             value: format!("{} bytes", a.sector_size),
-            source: "gpt-forensic".to_string(),
+            source: "gpt-partition-forensic".to_string(),
         },
         Provenance {
             label: "GPT SHA-256".to_string(),
             value: a.gpt_sha256.clone(),
-            source: "gpt-forensic".to_string(),
+            source: "gpt-partition-forensic".to_string(),
         },
     ]
 }
 
 /// Provenance breadcrumbs from an APM analysis.
 #[must_use]
-pub fn apm_provenance(a: &apm_forensic::ApmAnalysis) -> Vec<Provenance> {
+pub fn apm_provenance(a: &apm_partition_forensic::ApmAnalysis) -> Vec<Provenance> {
     vec![
         Provenance {
             label: "block size".to_string(),
             value: format!("{} bytes", a.block_size),
-            source: "apm-forensic".to_string(),
+            source: "apm-partition-forensic".to_string(),
         },
         Provenance {
             label: "device blocks".to_string(),
             value: a.device_block_count.to_string(),
-            source: "apm-forensic".to_string(),
+            source: "apm-partition-forensic".to_string(),
         },
     ]
 }

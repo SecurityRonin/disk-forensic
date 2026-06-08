@@ -94,7 +94,7 @@ pub fn text_report(report: &DiskReport) -> String {
 /// Width of the GPT report's horizontal rule.
 const RULE: usize = 80;
 
-fn mbr_structure(a: &mbr_forensic::MbrAnalysis) -> String {
+fn mbr_structure(a: &mbr_partition_forensic::MbrAnalysis) -> String {
     let mut s = String::new();
     let _ = writeln!(s, "MBR Forensic Analysis");
     let _ = writeln!(s, "  disk signature : {:#010x}", a.disk_serial);
@@ -129,7 +129,7 @@ fn mbr_structure(a: &mbr_forensic::MbrAnalysis) -> String {
     s
 }
 
-fn gpt_structure(a: &gpt_forensic::GptAnalysis) -> String {
+fn gpt_structure(a: &gpt_partition_forensic::GptAnalysis) -> String {
     let mut out = String::new();
     out.push_str("GPT Forensic Analysis\n");
     out.push_str(&"=".repeat(RULE));
@@ -180,7 +180,7 @@ fn gpt_structure(a: &gpt_forensic::GptAnalysis) -> String {
     out
 }
 
-fn apm_structure(a: &apm_forensic::ApmAnalysis) -> String {
+fn apm_structure(a: &apm_partition_forensic::ApmAnalysis) -> String {
     let mut s = String::new();
     let _ = writeln!(s, "APM Forensic Analysis");
     let _ = writeln!(s, "  block size     : {} bytes", a.block_size);

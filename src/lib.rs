@@ -12,7 +12,7 @@
 //! detection comes from the
 //! [`forensicnomicon`](https://docs.rs/forensicnomicon) knowledge base, and every
 //! real parse is delegated to a sibling crate
-//! ([`mbr_forensic`], [`gpt_forensic`], [`apm_forensic`]).
+//! ([`mbr_partition_forensic`], [`gpt_partition_forensic`], [`apm_partition_forensic`]).
 //!
 //! ```no_run
 //! // Decode whatever container the evidence arrived in, then analyse the disk.
@@ -49,10 +49,10 @@ pub enum Error {
     UnknownScheme,
     /// The Apple Partition Map parser failed.
     #[error("APM analysis failed: {0}")]
-    Apm(#[from] apm_forensic::Error),
+    Apm(#[from] apm_partition_forensic::Error),
     /// The MBR/GPT parser failed.
     #[error("MBR/GPT analysis failed: {0}")]
-    Mbr(#[from] mbr_forensic::Error),
+    Mbr(#[from] mbr_partition_forensic::Error),
     /// I/O failure while reading the disk image.
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
@@ -66,11 +66,11 @@ pub enum Error {
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub enum DiskReport {
     /// Apple Partition Map.
-    Apm(apm_forensic::ApmAnalysis),
+    Apm(apm_partition_forensic::ApmAnalysis),
     /// Classic Master Boot Record (no GPT).
-    Mbr(Box<mbr_forensic::MbrAnalysis>),
+    Mbr(Box<mbr_partition_forensic::MbrAnalysis>),
     /// GUID Partition Table (protective MBR + parsed GPT).
-    Gpt(Box<mbr_forensic::MbrAnalysis>),
+    Gpt(Box<mbr_partition_forensic::MbrAnalysis>),
 }
 
 impl DiskReport {
@@ -110,12 +110,12 @@ pub fn analyse_disk<R: Read + Seek>(
 ) -> Result<DiskReport, Error> {
     let boot = read_boot_area(reader)?;
     match forensicnomicon::partition_schemes::detect_scheme(&boot) {
-        Some(Scheme::Apm) => Ok(DiskReport::Apm(apm_forensic::analyse_reader(
+        Some(Scheme::Apm) => Ok(DiskReport::Apm(apm_partition_forensic::analyse_reader(
             reader,
             APM_MAX_BYTES,
         )?)),
         Some(Scheme::Gpt | Scheme::Mbr) => {
-            let mbr = mbr_forensic::analyse(reader, disk_size_bytes)?;
+            let mbr = mbr_partition_forensic::analyse(reader, disk_size_bytes)?;
             // The parser's own GPT detection is authoritative for the label: a
             // protective MBR with a parseable GPT → Gpt, otherwise classic Mbr.
             if mbr.gpt.is_some() {
@@ -153,9 +153,9 @@ mod tests {
     #[test]
     fn error_display_covers_every_variant() {
         assert!(Error::UnknownScheme.to_string().contains("unrecognised"));
-        let apm: Error = apm_forensic::Error::NotApm.into();
+        let apm: Error = apm_partition_forensic::Error::NotApm.into();
         assert!(apm.to_string().contains("APM"));
-        let mbr: Error = mbr_forensic::Error::TooShort(1).into();
+        let mbr: Error = mbr_partition_forensic::Error::TooShort(1).into();
         assert!(mbr.to_string().contains("MBR"));
         let io: Error = IoError::other("boom").into();
         assert!(io.to_string().contains("I/O"));
