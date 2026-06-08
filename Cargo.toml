@@ -24,7 +24,9 @@ ewf = "0.2.1"
 vmdk = { version = "0.6.3", package = "vmdk-core" }
 # VMDK forensic analyzer — its analyse() findings aggregate into the report.
 vmdk-forensic = "0.6.1"
-qcow = "1.2.0"
+# Our own QCOW2 reader (replaces third-party `qcow`, which pulled an ancient zstd
+# that conflicted across the fleet). Package qcow2-core, imported as `qcow2`.
+qcow2 = { version = "0.2", package = "qcow2-core" }
 vhdx = { version = "0.2.0", package = "vhdx-core" }
 udif = "0.3.4"
 serde = { version = "1", features = ["derive"], optional = true }
