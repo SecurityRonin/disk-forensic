@@ -129,9 +129,9 @@ directly when you already know the scheme, or through this crate when you don't:
 
 | Crate | Scheme |
 |---|---|
-| [`mbr-forensic`](https://github.com/SecurityRonin/mbr-forensic) | Master Boot Record — boot-code fingerprinting, gap/slack carving, **per-partition VBR filesystem fingerprinting**, protective-MBR/GPT detection |
-| [`gpt-forensic`](https://github.com/SecurityRonin/gpt-forensic) | GUID Partition Table — CRC32 integrity, primary/backup reconciliation |
-| [`apm-forensic`](https://github.com/SecurityRonin/apm-forensic) | Apple Partition Map — classic Mac and hybrid optical media |
+| [`mbr-partition-forensic`](https://github.com/SecurityRonin/mbr-partition-forensic) | Master Boot Record — boot-code fingerprinting, gap/slack carving, **per-partition VBR filesystem fingerprinting**, protective-MBR/GPT detection |
+| [`gpt-partition-forensic`](https://github.com/SecurityRonin/gpt-partition-forensic) | GUID Partition Table — CRC32 integrity, primary/backup reconciliation |
+| [`apm-partition-forensic`](https://github.com/SecurityRonin/apm-partition-forensic) | Apple Partition Map — classic Mac and hybrid optical media |
 
 ## Design
 
