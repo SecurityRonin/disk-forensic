@@ -72,7 +72,7 @@ fn gpt_header(
     s[80..84].copy_from_slice(&num.to_le_bytes());
     s[84..88].copy_from_slice(&esize.to_le_bytes());
     s[88..92].copy_from_slice(&array_crc.to_le_bytes());
-    let crc = gpt_forensic::crc32::checksum(&s[..92]);
+    let crc = gpt_partition_forensic::crc32::checksum(&s[..92]);
     s[16..20].copy_from_slice(&crc.to_le_bytes());
     s
 }
@@ -94,7 +94,7 @@ pub fn build_gpt() -> Vec<u8> {
         30,
         "Linux",
     ));
-    let array_crc = gpt_forensic::crc32::checksum(&array);
+    let array_crc = gpt_partition_forensic::crc32::checksum(&array);
     let primary = gpt_header(1, 63, 2, 3, 61, 4, 128, array_crc);
     let backup = gpt_header(63, 1, 62, 3, 61, 4, 128, array_crc);
     disk[SECTOR..SECTOR + 512].copy_from_slice(&primary);

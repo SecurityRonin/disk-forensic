@@ -17,7 +17,7 @@ fn mbr_provenance_includes_boot_code_and_era() {
     assert!(r
         .provenance
         .iter()
-        .any(|p| p.label == "boot code" && p.source == "mbr-forensic"));
+        .any(|p| p.label == "boot code" && p.source == "mbr-partition-forensic"));
     assert!(r.provenance.iter().any(|p| p.label.contains("era")));
 }
 
@@ -27,7 +27,7 @@ fn gpt_provenance_includes_disk_guid_and_sha256() {
     assert!(r
         .provenance
         .iter()
-        .any(|p| p.label == "disk GUID" && p.source == "gpt-forensic"));
+        .any(|p| p.label == "disk GUID" && p.source == "gpt-partition-forensic"));
     assert!(r.provenance.iter().any(|p| p.label.contains("SHA-256")));
 }
 
@@ -37,5 +37,5 @@ fn apm_provenance_includes_block_size() {
     assert!(r
         .provenance
         .iter()
-        .any(|p| p.label == "block size" && p.source == "apm-forensic"));
+        .any(|p| p.label == "block size" && p.source == "apm-partition-forensic"));
 }

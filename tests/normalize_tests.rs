@@ -20,7 +20,7 @@ fn normalizes_mbr_findings_with_source_and_evidence() {
     assert!(r
         .findings
         .iter()
-        .all(|f| f.source.analyzer == "mbr-forensic"));
+        .all(|f| f.source.analyzer == "mbr-partition-forensic"));
     assert!(r.findings.iter().any(|f| f.code.starts_with("MBR-")));
     assert!(
         r.findings[0].evidence.iter().any(|e| e.field == "offset"),
@@ -37,7 +37,7 @@ fn normalizes_gpt_disk_attributing_protective_mbr_findings() {
     assert!(r
         .findings
         .iter()
-        .any(|f| f.source.analyzer == "mbr-forensic"));
+        .any(|f| f.source.analyzer == "mbr-partition-forensic"));
     assert!(r
         .findings
         .iter()
@@ -51,6 +51,6 @@ fn normalizes_apm_attributing_to_apm_forensic() {
     assert!(r
         .findings
         .iter()
-        .all(|f| f.source.analyzer == "apm-forensic"));
+        .all(|f| f.source.analyzer == "apm-partition-forensic"));
     let _ = r.max_severity();
 }

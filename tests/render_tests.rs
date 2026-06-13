@@ -21,7 +21,10 @@ fn renders_findings_grouped_by_severity_with_source_and_evidence() {
     // The first finding's code, source attribution, and offset evidence appear.
     let f = &rep.findings[0];
     assert!(text.contains(f.code.as_ref()), "code missing:\n{text}");
-    assert!(text.contains("mbr-forensic"), "source missing:\n{text}");
+    assert!(
+        text.contains("mbr-partition-forensic"),
+        "source missing:\n{text}"
+    );
     assert!(text.contains("offset"), "evidence missing:\n{text}");
 }
 

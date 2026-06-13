@@ -102,9 +102,10 @@ fn vmdk_with_real_ntfs_fingerprints_the_partition() {
         panic!("expected an MBR disk");
     };
     assert!(
-        a.partitions
-            .iter()
-            .any(|p| matches!(p.detected_fs, Some(mbr_forensic::DetectedFs::Ntfs))),
+        a.partitions.iter().any(|p| matches!(
+            p.detected_fs,
+            Some(mbr_partition_forensic::DetectedFs::Ntfs)
+        )),
         "the real NTFS partition should be fingerprinted as NTFS"
     );
 }
