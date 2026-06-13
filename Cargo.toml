@@ -1,6 +1,6 @@
 [package]
 name = "disk-forensic"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2021"
 rust-version = "1.85"
 license = "MIT"
@@ -15,17 +15,17 @@ thiserror = "2"
 # Sibling scheme parsers (one per partitioning scheme) and the knowledge base.
 # Partition-scheme analyzers (each now a *-partition-forensic workspace with a
 # *-partition-core reader).
-mbr-partition-forensic = "0.4.1"
-gpt-partition-forensic = "0.4.1"
-apm-partition-forensic = "0.4.1"
+mbr-partition-forensic = "0.5.0"
+gpt-partition-forensic = "0.5.0"
+apm-partition-forensic = "0.5.0"
 # Filesystem analyzer for optical (ISO 9660) images — disk4n6's FS dimension.
-iso9660-forensic = "0.5.0"
-forensicnomicon = "0.3.1"
+iso9660-forensic = "0.6.0"
+forensicnomicon = "0.5"
 # Container/image decoders (decode → Read+Seek view of the disk).
 ewf = "0.2.1"
-vmdk = { version = "0.6.3", package = "vmdk-core" }
+vmdk = { version = "0.7.0", package = "vmdk-core" }
 # VMDK forensic analyzer — its analyse() findings aggregate into the report.
-vmdk-forensic = "0.6.1"
+vmdk-forensic = "0.7.0"
 # Our own QCOW2 reader (replaces third-party `qcow`, which pulled an ancient zstd
 # that conflicted across the fleet). Package qcow2-core, imported as `qcow2`.
 qcow2 = { version = "0.2", package = "qcow2-core" }
