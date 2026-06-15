@@ -7,9 +7,9 @@ decoder crate does the work, its output was byte-exact verified (boot signature
 *and* a marker planted deep in the disk) through that crate before it was wired
 into `open()`.
 
-All fixtures live in [`tests/data/`](../tests/data) and the assertions are in
-[`tests/open_tests.rs`](../tests/open_tests.rs) and
-[`tests/cli_tests.rs`](../tests/cli_tests.rs). Run `cargo test --all-features`.
+All fixtures live in [`tests/data/`](https://github.com/SecurityRonin/disk-forensic/tree/main/tests/data) and the assertions are in
+[`tests/open_tests.rs`](https://github.com/SecurityRonin/disk-forensic/blob/main/tests/open_tests.rs) and
+[`tests/cli_tests.rs`](https://github.com/SecurityRonin/disk-forensic/blob/main/tests/cli_tests.rs). Run `cargo test --all-features`.
 
 ## Container decoders
 
