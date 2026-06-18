@@ -80,6 +80,26 @@ jobs:
         with:
           command: check
 
+  # crates.io only gates description + license fields, not the README/LICENSE
+  # files — assert every publishable crate actually packages both.
+  package:
+    name: Package completeness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: dtolnay/rust-toolchain@stable
+      - name: README + LICENSE packaged in every published crate
+        run: |
+          set -euo pipefail
+          pkgs=$(cargo metadata --no-deps --format-version 1 \
+            | python3 -c "import sys,json;[print(p['name']) for p in json.load(sys.stdin)['packages'] if p.get('publish') != []]")
+          for p in $pkgs; do
+            list=$(cargo package -p "$p" --list)
+            echo "$list" | grep -qx 'README.md' || { echo "::error::$p does not package README.md"; exit 1; }
+            echo "$list" | grep -q '^LICENSE'   || { echo "::error::$p does not package a LICENSE file"; exit 1; }
+            echo "✓ $p packages README.md + LICENSE"
+          done
+
   fuzz-check:
     name: Fuzz targets compile (nightly)
     runs-on: ubuntu-latest
