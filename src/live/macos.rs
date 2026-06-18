@@ -67,8 +67,46 @@ pub(super) fn enumerate() -> Result<Vec<PhysicalDisk>, Error> {
 /// Partitions attach to the whole disk named by the leading `diskN` of their BSD
 /// name; disks are ordered by their numeric index and partitions by on-disk
 /// offset. Pure — the unit tests exercise this without IOKit.
-fn assemble(_media: Vec<RawMedia>) -> Vec<PhysicalDisk> {
-    unimplemented!("RED: assemble")
+fn assemble(media: Vec<RawMedia>) -> Vec<PhysicalDisk> {
+    let mut disks: Vec<PhysicalDisk> = media
+        .iter()
+        .filter(|m| m.whole)
+        .map(|m| PhysicalDisk {
+            device_path: format!("/dev/{}", m.bsd),
+            name: m.bsd.clone(),
+            size_bytes: m.size,
+            logical_sector_size: m.block,
+            physical_sector_size: m.block,
+            model: None,
+            serial: None,
+            removable: m.removable,
+            read_only: !m.writable,
+            synthesized: m.class.starts_with("AppleAPFS"),
+            partitions: Vec::new(),
+        })
+        .collect();
+
+    for m in media.iter().filter(|m| !m.whole) {
+        let parent = whole_disk_of(&m.bsd);
+        if let Some(d) = disks.iter_mut().find(|d| d.name == parent) {
+            d.partitions.push(Partition {
+                device_path: format!("/dev/{}", m.bsd),
+                name: m.bsd.clone(),
+                start_offset: m.base,
+                size_bytes: m.size,
+                partition_type: (!m.content.is_empty()).then(|| m.content.clone()),
+                mount_point: None,
+                filesystem: None,
+                label: None,
+            });
+        }
+    }
+
+    for d in &mut disks {
+        d.partitions.sort_by_key(|p| p.start_offset);
+    }
+    disks.sort_by_key(|d| disk_index(&d.name));
+    disks
 }
 
 /// The whole-disk BSD name owning a partition: `disk3s1s1` → `disk3`.
