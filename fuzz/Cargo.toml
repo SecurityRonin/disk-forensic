@@ -9,6 +9,7 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
+tempfile = "3"
 
 [dependencies.disk-forensic]
 path = ".."
@@ -16,6 +17,20 @@ path = ".."
 [[bin]]
 name = "analyse_disk"
 path = "fuzz_targets/analyse_disk.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "sniff"
+path = "fuzz_targets/sniff.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "container_open"
+path = "fuzz_targets/container_open.rs"
 test = false
 doc = false
 bench = false
