@@ -196,19 +196,19 @@ unsafe fn read_media(entry: io_registry_entry_t) -> Option<RawMedia> {
 }
 
 fn dict_i64(d: &CFDictionary<CFString, CFType>, key: &str) -> Option<i64> {
-    d.find(&CFString::new(key))
+    d.find(CFString::new(key))
         .and_then(|v| v.downcast::<CFNumber>())
         .and_then(|n| n.to_i64())
 }
 
 fn dict_bool(d: &CFDictionary<CFString, CFType>, key: &str) -> Option<bool> {
-    d.find(&CFString::new(key))
+    d.find(CFString::new(key))
         .and_then(|v| v.downcast::<CFBoolean>())
         .map(bool::from)
 }
 
 fn dict_string(d: &CFDictionary<CFString, CFType>, key: &str) -> Option<String> {
-    d.find(&CFString::new(key))
+    d.find(CFString::new(key))
         .and_then(|v| v.downcast::<CFString>())
         .map(|s| s.to_string())
 }

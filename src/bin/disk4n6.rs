@@ -35,7 +35,29 @@ enum Command {
 /// positional selects enumeration; otherwise the first positional is the
 /// image/device to analyse. `--json` is accepted in any position.
 fn parse_args(args: impl Iterator<Item = String>) -> Command {
-    unimplemented!("RED: parse_args")
+    let mut json = false;
+    let mut help = false;
+    let mut list = false;
+    let mut path: Option<String> = None;
+    for arg in args {
+        match arg.as_str() {
+            "--json" => json = true,
+            "-h" | "--help" => help = true,
+            "list" if path.is_none() => list = true,
+            _ if path.is_none() => path = Some(arg),
+            _ => {}
+        }
+    }
+    if help {
+        return Command::Usage;
+    }
+    if list {
+        return Command::List { json };
+    }
+    match path {
+        Some(path) => Command::Analyze { path, json },
+        None => Command::Usage,
+    }
 }
 
 fn main() -> ExitCode {

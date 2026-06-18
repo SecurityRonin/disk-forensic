@@ -165,7 +165,7 @@ pub fn render_disks(disks: &[PhysicalDisk]) -> String {
         s.push_str("No disks found.\n");
         return s;
     }
-    let _ = writeln!(s, "{:<14} {:>10}  {:<6} {}", "NAME", "SIZE", "TYPE", "INFO");
+    let _ = writeln!(s, "{:<14} {:>10}  {:<6} INFO", "NAME", "SIZE", "TYPE");
     for d in disks {
         let kind = if d.synthesized { "synth" } else { "disk" };
         let mut info = d.model.clone().unwrap_or_default();
@@ -222,8 +222,43 @@ fn partition_info(p: &Partition) -> String {
 /// proportional bar. `color` selects ANSI vs ASCII (the caller passes whether
 /// stdout is a TTY).
 #[must_use]
-pub fn render_listing(_disks: &[PhysicalDisk], _width: usize, _color: bool) -> String {
-    unimplemented!("RED: render_listing")
+pub fn render_listing(disks: &[PhysicalDisk], width: usize, color: bool) -> String {
+    if disks.is_empty() {
+        return "No disks found.\n".to_string();
+    }
+    let mut s = String::new();
+    for d in disks {
+        let kind = if d.synthesized { " (synthesized)" } else { "" };
+        let model = d
+            .model
+            .as_deref()
+            .map(|m| format!("  {m}"))
+            .unwrap_or_default();
+        let _ = writeln!(
+            s,
+            "{}  {}{kind}{model}",
+            d.device_path,
+            human_size(d.size_bytes)
+        );
+        if d.partitions.is_empty() {
+            s.push_str("  (no partitions)\n");
+        } else if d.synthesized {
+            for p in &d.partitions {
+                let _ = writeln!(
+                    s,
+                    "  {:<16} {:>10}  {}",
+                    p.name,
+                    human_size(p.size_bytes),
+                    partition_info(p)
+                );
+            }
+            s.push_str("  (volumes share container space)\n");
+        } else {
+            s.push_str(&render_disk_bar(d, width, color));
+        }
+        s.push('\n');
+    }
+    s
 }
 
 #[cfg(test)]
