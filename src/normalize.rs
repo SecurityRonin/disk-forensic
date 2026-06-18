@@ -155,7 +155,11 @@ pub fn iso_provenance(a: &iso9660_forensic::IsoAnalysis) -> Vec<Provenance> {
         let platforms: Vec<&str> = v.boot_entries.iter().map(|b| b.platform.as_str()).collect();
         entries.push((
             "El Torito boot",
-            format!("{} entries ({})", v.boot_entries.len(), platforms.join(", ")),
+            format!(
+                "{} entries ({})",
+                v.boot_entries.len(),
+                platforms.join(", ")
+            ),
         ));
     }
     entries

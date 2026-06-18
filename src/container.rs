@@ -155,8 +155,7 @@ pub fn open(path: &Path) -> Result<OpenedImage, OpenError> {
             })
         }
         ContainerFormat::Dmg => {
-            let bytes =
-                decode_dmg(path).map_err(|e| OpenError::Decode(format, e.to_string()))?;
+            let bytes = decode_dmg(path).map_err(|e| OpenError::Decode(format, e.to_string()))?;
             Ok(OpenedImage {
                 format,
                 size: bytes.len() as u64,

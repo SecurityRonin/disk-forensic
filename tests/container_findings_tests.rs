@@ -30,11 +30,15 @@ fn vmdk_unclean_shutdown_surfaces_in_opened_image() {
 fn clean_vmdk_has_no_container_findings() {
     // The pristine fixture has no anomalies — findings stays empty, so a clean
     // image is not falsely flagged.
-    let opened = disk_forensic::container::open(std::path::Path::new(DF_VMDK))
-        .expect("open clean vmdk");
+    let opened =
+        disk_forensic::container::open(std::path::Path::new(DF_VMDK)).expect("open clean vmdk");
     assert!(
         opened.findings.is_empty(),
         "a clean VMDK has no container findings, got: {:?}",
-        opened.findings.iter().map(|f| f.code.as_ref()).collect::<Vec<_>>()
+        opened
+            .findings
+            .iter()
+            .map(|f| f.code.as_ref())
+            .collect::<Vec<_>>()
     );
 }

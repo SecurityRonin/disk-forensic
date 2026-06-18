@@ -71,7 +71,11 @@ impl VhdReader {
         let layout = match disk_type {
             2 => Layout::Fixed,
             3 => Self::parse_dynamic(&mut file, data_offset)?,
-            4 => return Err(invalid("differencing VHDs (parent required) are not supported")),
+            4 => {
+                return Err(invalid(
+                    "differencing VHDs (parent required) are not supported",
+                ))
+            }
             other => return Err(invalid(format!("unsupported VHD disk type {other}"))),
         };
 
@@ -181,11 +185,8 @@ mod tests {
     use std::io::Write;
 
     fn tmp(bytes: &[u8]) -> File {
-        let p = std::env::temp_dir().join(format!(
-            "vhd_unit_{}_{:p}.bin",
-            std::process::id(),
-            bytes
-        ));
+        let p =
+            std::env::temp_dir().join(format!("vhd_unit_{}_{:p}.bin", std::process::id(), bytes));
         let mut f = File::create(&p).unwrap();
         f.write_all(bytes).unwrap();
         f.sync_all().unwrap();
