@@ -1,6 +1,6 @@
 [package]
 name = "disk-forensic"
-version = "0.8.3"
+version = "0.8.4"
 edition = "2021"
 rust-version = "1.96"
 license = "Apache-2.0"
@@ -24,8 +24,8 @@ iso9660-forensic = "0.6.0"
 forensicnomicon = "0.5"
 # Live-system device enumeration + acquisition-integrity findings (fleet crates).
 # The OS-specific FFI lives in livedisk-core, so disk-forensic stays unsafe-free.
-livedisk = { version = "0.1.2", package = "livedisk-core" }
-livedisk-forensic = "0.1.2"
+livedisk = { version = "0.1.3", package = "livedisk-core" }
+livedisk-forensic = "0.1.3"
 # Container/image decoders (decode → Read+Seek view of the disk).
 ewf = "0.2.1"
 vmdk = { version = "0.7.0", package = "vmdk-core" }

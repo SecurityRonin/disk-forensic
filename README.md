@@ -38,8 +38,7 @@ All storage (2 physical disks, 1.1 TB total):
  #  2  disk1s2  EBD0A0A2-B9E5-4433-87C0-68B6B72699C7    63.8 GB  99.7%
 
 Acquisition-integrity findings:
-  disk0  [MEDIUM] LIVE-WRITABLE: device is writable (no hardware write-blocker detected); acquisition can alter the evidence
-  disk1  [MEDIUM] LIVE-WRITABLE: device is writable (no hardware write-blocker detected); acquisition can alter the evidence
+  disk0  [HIGH] LIVE-MOUNTED: device has mounted volume(s) during acquisition; live writes may alter the image — consistent with imaging a running system
 ```
 
 The overview bar scales every disk against the largest, so relative sizes read at a glance; each per-disk bar lays out partitions and free space proportionally, the largest partition coloured to match its disk in the overview.
@@ -83,7 +82,7 @@ The findings are observations bearing on a forensically sound acquisition — ne
 | Code | Meaning |
 |---|---|
 | `LIVE-MOUNTED` | a volume is mounted during acquisition (live writes may alter the image) |
-| `LIVE-WRITABLE` | the device is writable; no hardware write-blocker detected |
+| `LIVE-WRITABLE` | the device **being acquired** is writable — no write-blocker engaged. Shown when you point `disk4n6` at a specific target device, not in the host overview (every live disk is writable, so flagging it there is noise) |
 | `LIVE-REMOVABLE` | removable media |
 | `LIVE-SECTOR-4KN` | logical/physical sector sizes differ (512e / 4Kn) |
 | `LIVE-SYNTHESIZED` | a synthesized container overlay (APFS container, device-mapper/LVM), not a backing physical store |

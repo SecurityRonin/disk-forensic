@@ -159,7 +159,15 @@ fn analyse_device(path: &str, json: bool) -> ExitCode {
         }
     };
     let mut reader: Box<dyn ReadSeek> = Box::new(file);
-    report_disk(path, &mut reader, size, json, Vec::new())
+    // Acquisition-target findings for the specific device being imaged — notably
+    // LIVE-WRITABLE (HIGH) when the target is writable, i.e. no hardware
+    // write-blocker is engaged. Looked up by device path; absence is non-fatal.
+    let target_findings = livedisk::enumerate()
+        .ok()
+        .and_then(|disks| disks.into_iter().find(|d| d.device_path == path))
+        .map(|d| livedisk_forensic::analyse_target(&d))
+        .unwrap_or_default();
+    report_disk(path, &mut reader, size, json, target_findings)
 }
 
 /// Analyse an evidence file: sniff/decode its container, route ISO 9660 to the
