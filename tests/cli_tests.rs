@@ -107,16 +107,24 @@ fn unknown_scheme_exits_failure() {
 }
 
 #[test]
-fn no_args_prints_usage() {
+fn no_args_defaults_to_listing() {
+    // With no argument, disk4n6 enumerates the host's disks (exit 0) or fails
+    // loud when raw access needs elevation (exit 1) — never a usage error or
+    // panic. On the Linux CI runner this drives the sysfs backend end-to-end.
     let out = bin().output().unwrap();
-    assert_eq!(out.status.code(), Some(2));
-    assert!(String::from_utf8_lossy(&out.stderr).contains("usage"));
+    assert!(
+        matches!(out.status.code(), Some(0) | Some(1)),
+        "default-list exit: {:?}, stderr: {}",
+        out.status.code(),
+        String::from_utf8_lossy(&out.stderr)
+    );
 }
 
 #[test]
 fn help_flag_prints_usage() {
     let out = bin().arg("--help").output().unwrap();
     assert_eq!(out.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("usage"));
 }
 
 #[test]
@@ -132,21 +140,6 @@ fn json_output_emits_scheme() {
     let out = bin().args(["--json", APM_FIXTURE]).output().unwrap();
     assert!(out.status.success());
     assert!(String::from_utf8_lossy(&out.stdout).contains("Apm"));
-}
-
-#[test]
-fn list_subcommand_enumerates_or_reports_cleanly() {
-    // Exercises the live-enumeration path against the real host: lists the
-    // machine's disks (exit 0) or fails loud when raw access needs elevation
-    // (exit 1, e.g. Windows without Administrator) — never a panic. On the Linux
-    // CI runner this drives the sysfs backend end-to-end.
-    let out = bin().arg("list").output().unwrap();
-    assert!(
-        matches!(out.status.code(), Some(0) | Some(1)),
-        "list exit: {:?}, stderr: {}",
-        out.status.code(),
-        String::from_utf8_lossy(&out.stderr)
-    );
 }
 
 #[cfg(unix)]

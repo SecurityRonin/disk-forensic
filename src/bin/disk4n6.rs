@@ -1,48 +1,49 @@
-//! `disk4n6` — analyse a disk image or live device, or list the host's disks.
+//! `disk4n6` — list the host's disks, or analyse a disk image / live device.
 //!
 //! Usage:
-//!   disk4n6 <image|device>        # human-readable report
-//!   disk4n6 --json <image|device> # JSON (requires the `serde` feature)
-//!   disk4n6 list [--json]         # enumerate live disks/partitions
+//!   disk4n6                          # list live disks (default)
+//!   disk4n6 [--json] <image|device>  # analyse an image or device
+//!   disk4n6 --json                   # list as JSON
 //!
+//! With no argument, disk4n6 enumerates every physical disk on the running
+//! machine with a proportional partition-layout bar, like a partition manager.
 //! `<image>` is an evidence file (raw or E01/VMDK/VHDX/VHD/QCOW2/DMG/ISO);
 //! `<device>` is a live block device (`/dev/disk0`, `/dev/sda`,
-//! `\\.\PhysicalDrive0`). `list` shows every disk on the running machine with a
-//! proportional partition-layout bar, like a partition manager.
+//! `\\.\PhysicalDrive0`).
 
 use std::io::IsTerminal;
 use std::process::ExitCode;
 
 use disk_forensic::container::{self, ReadSeek};
 
-/// Inner width of the `list` proportional bars.
+/// Inner width of the proportional bars.
 const BAR_WIDTH: usize = 56;
-const USAGE: &str = "usage: disk4n6 [--json] <image|device>\n       disk4n6 list [--json]";
+const USAGE: &str = "usage: disk4n6 [--json]                  # list live disks\n       \
+                     disk4n6 [--json] <image|device>   # analyse an image or device";
 
 /// A parsed command line.
 #[derive(Debug, PartialEq, Eq)]
 enum Command {
-    /// Enumerate live disks.
+    /// Enumerate live disks (the no-argument default).
     List { json: bool },
     /// Analyse an image file or live device.
     Analyze { path: String, json: bool },
-    /// Show usage and exit (no/`-h`/ambiguous args).
+    /// Show usage and exit (`-h`/`--help`).
     Usage,
 }
 
-/// Parse argv (excluding argv[0]) into a [`Command`]. `list` as the first
-/// positional selects enumeration; otherwise the first positional is the
-/// image/device to analyse. `--json` is accepted in any position.
+/// Parse argv (excluding argv[0]) into a [`Command`]. With no positional
+/// argument it defaults to listing the host's disks; otherwise the first
+/// positional is the image/device to analyse. `--json` is accepted in any
+/// position; `-h`/`--help` shows usage.
 fn parse_args(args: impl Iterator<Item = String>) -> Command {
     let mut json = false;
     let mut help = false;
-    let mut list = false;
     let mut path: Option<String> = None;
     for arg in args {
         match arg.as_str() {
             "--json" => json = true,
             "-h" | "--help" => help = true,
-            "list" if path.is_none() => list = true,
             _ if path.is_none() => path = Some(arg),
             _ => {}
         }
@@ -50,12 +51,9 @@ fn parse_args(args: impl Iterator<Item = String>) -> Command {
     if help {
         return Command::Usage;
     }
-    if list {
-        return Command::List { json };
-    }
     match path {
         Some(path) => Command::Analyze { path, json },
-        None => Command::Usage,
+        None => Command::List { json },
     }
 }
 
@@ -286,10 +284,9 @@ mod tests {
     }
 
     #[test]
-    fn parse_list_subcommand() {
-        assert_eq!(parse(&["list"]), Command::List { json: false });
-        assert_eq!(parse(&["list", "--json"]), Command::List { json: true });
-        assert_eq!(parse(&["--json", "list"]), Command::List { json: true });
+    fn parse_no_args_defaults_to_list() {
+        assert_eq!(parse(&[]), Command::List { json: false });
+        assert_eq!(parse(&["--json"]), Command::List { json: true });
     }
 
     #[test]
@@ -308,11 +305,18 @@ mod tests {
                 json: true
             }
         );
+        // "list" is no longer a subcommand — it's treated as a path to analyse.
+        assert_eq!(
+            parse(&["list"]),
+            Command::Analyze {
+                path: "list".into(),
+                json: false
+            }
+        );
     }
 
     #[test]
-    fn parse_usage_on_empty_or_help() {
-        assert_eq!(parse(&[]), Command::Usage);
+    fn parse_usage_only_on_help() {
         assert_eq!(parse(&["-h"]), Command::Usage);
         assert_eq!(parse(&["--help"]), Command::Usage);
     }

@@ -44,10 +44,10 @@ fn list_enumerates_a_loopback_device() {
     let dev = String::from_utf8_lossy(&attach.stdout).trim().to_string(); // /dev/loopN
     let name = dev.trim_start_matches("/dev/").to_string();
 
+    // No argument → default listing.
     let listing = Command::new(env!("CARGO_BIN_EXE_disk4n6"))
-        .arg("list")
         .output()
-        .expect("run disk4n6 list");
+        .expect("run disk4n6 (default list)");
     let stdout = String::from_utf8_lossy(&listing.stdout).into_owned();
 
     // Detach and clean up before asserting, so a failure does not leak the device.
