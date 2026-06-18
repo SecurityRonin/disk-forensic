@@ -131,22 +131,78 @@ pub fn enumerate() -> Result<Vec<PhysicalDisk>, Error> {
 /// fractional digit (`4.0 TB`, `524.3 MB`, `24.6 KB`), matching `diskutil`/
 /// `lsblk` so output is recognisable. Bytes under 1000 render as `N B`.
 #[must_use]
-pub fn human_size(_bytes: u64) -> String {
-    unimplemented!("RED: human_size")
+pub fn human_size(bytes: u64) -> String {
+    const UNITS: [&str; 6] = ["B", "KB", "MB", "GB", "TB", "PB"];
+    if bytes < 1000 {
+        return format!("{bytes} B");
+    }
+    let mut value = bytes as f64;
+    let mut unit = 0;
+    while value >= 1000.0 && unit < UNITS.len() - 1 {
+        value /= 1000.0;
+        unit += 1;
+    }
+    format!("{value:.1} {}", UNITS[unit])
 }
 
 /// Render the enumerated disks as a unified, indented text table — the
 /// `disk4n6 list` human view. Whole disks are flush-left; their partitions are
 /// indented beneath them, so the layout reads the same on every platform.
 #[must_use]
-pub fn render_disks(_disks: &[PhysicalDisk]) -> String {
-    unimplemented!("RED: render_disks")
+pub fn render_disks(disks: &[PhysicalDisk]) -> String {
+    let mut s = String::new();
+    if disks.is_empty() {
+        s.push_str("No disks found.\n");
+        return s;
+    }
+    let _ = writeln!(s, "{:<14} {:>10}  {:<6} {}", "NAME", "SIZE", "TYPE", "INFO");
+    for d in disks {
+        let kind = if d.synthesized { "synth" } else { "disk" };
+        let mut info = d.model.clone().unwrap_or_default();
+        if d.removable {
+            info = if info.is_empty() {
+                "removable".to_string()
+            } else {
+                format!("{info} (removable)")
+            };
+        }
+        let _ = writeln!(
+            s,
+            "{:<14} {:>10}  {:<6} {}",
+            d.name,
+            human_size(d.size_bytes),
+            kind,
+            info.trim()
+        );
+        for p in &d.partitions {
+            let indented = format!("  {}", p.name);
+            let _ = writeln!(
+                s,
+                "{:<14} {:>10}  {:<6} {}",
+                indented,
+                human_size(p.size_bytes),
+                "part",
+                partition_info(p)
+            );
+        }
+    }
+    s
 }
 
 /// The trailing description column for a partition row: type, then mount point
 /// and label when present (`Apple_APFS  /Volumes/Data [DATA]`).
-fn partition_info(_p: &Partition) -> String {
-    unimplemented!("RED: partition_info")
+fn partition_info(p: &Partition) -> String {
+    let mut parts: Vec<String> = Vec::new();
+    if let Some(t) = &p.partition_type {
+        parts.push(t.clone());
+    }
+    if let Some(m) = &p.mount_point {
+        parts.push(m.clone());
+    }
+    if let Some(l) = &p.label {
+        parts.push(format!("[{l}]"));
+    }
+    parts.join("  ")
 }
 
 #[cfg(test)]

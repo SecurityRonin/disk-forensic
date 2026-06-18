@@ -29,7 +29,35 @@ pub(super) struct Segment {
 /// on-disk order, with unallocated gaps (including leading and trailing free
 /// space) inserted where partitions do not cover the device.
 pub(super) fn segments(disk: &PhysicalDisk) -> Vec<Segment> {
-    unimplemented!("RED: segments")
+    let mut sorted: Vec<&super::Partition> = disk.partitions.iter().collect();
+    sorted.sort_by_key(|p| p.start_offset);
+
+    let mut segs = Vec::with_capacity(sorted.len() * 2 + 1);
+    let mut cursor = 0u64;
+    for (i, p) in sorted.iter().enumerate() {
+        if p.start_offset > cursor {
+            segs.push(Segment {
+                size_bytes: p.start_offset - cursor,
+                index: None,
+                label: "free".to_string(),
+            });
+        }
+        let ty = p.partition_type.as_deref().unwrap_or("-");
+        segs.push(Segment {
+            size_bytes: p.size_bytes,
+            index: Some(i + 1),
+            label: format!("{}  {ty}", p.name),
+        });
+        cursor = cursor.max(p.start_offset.saturating_add(p.size_bytes));
+    }
+    if disk.size_bytes > cursor {
+        segs.push(Segment {
+            size_bytes: disk.size_bytes - cursor,
+            index: None,
+            label: "free".to_string(),
+        });
+    }
+    segs
 }
 
 /// Allocate `total` columns across `weights` by the largest-remainder method:
@@ -37,14 +65,126 @@ pub(super) fn segments(disk: &PhysicalDisk) -> Vec<Segment> {
 /// are not all zero), proportional to each weight, with every non-zero weight
 /// guaranteed at least one column when `total` is large enough to afford it.
 pub(super) fn allocate_widths(weights: &[u64], total: usize) -> Vec<usize> {
-    unimplemented!("RED: allocate_widths")
+    let n = weights.len();
+    let sum: u128 = weights.iter().map(|&w| u128::from(w)).sum();
+    if n == 0 || total == 0 || sum == 0 {
+        return vec![0; n];
+    }
+
+    // Largest-remainder (Hare): floor each share, then hand the leftover columns
+    // to the largest fractional remainders so the widths sum to exactly `total`.
+    let mut widths = vec![0usize; n];
+    let mut remainders = vec![0u128; n];
+    let mut allocated = 0usize;
+    for (i, &w) in weights.iter().enumerate() {
+        let exact = u128::from(w) * total as u128;
+        widths[i] = (exact / sum) as usize;
+        remainders[i] = exact % sum;
+        allocated += widths[i];
+    }
+    let mut order: Vec<usize> = (0..n).collect();
+    order.sort_by(|&a, &b| remainders[b].cmp(&remainders[a]));
+    let mut leftover = total - allocated;
+    for &i in &order {
+        if leftover == 0 {
+            break;
+        }
+        widths[i] += 1;
+        leftover -= 1;
+    }
+
+    // Guarantee a visible sliver for any non-empty segment that rounded to zero,
+    // borrowing a column from the currently-widest segment.
+    for i in 0..n {
+        if weights[i] > 0 && widths[i] == 0 {
+            if let Some(j) = (0..n).filter(|&j| widths[j] > 1).max_by_key(|&j| widths[j]) {
+                widths[j] -= 1;
+                widths[i] += 1;
+            }
+        }
+    }
+    widths
 }
 
 /// Render the proportional bar plus legend for one disk. `width` is the bar's
 /// inner column count; `color` selects ANSI-coloured solid blocks (TTY) versus
 /// ASCII glyphs (pipe-safe).
 pub fn render_disk_bar(disk: &PhysicalDisk, width: usize, color: bool) -> String {
-    unimplemented!("RED: render_disk_bar")
+    // ANSI 256-colour codes and the pipe-safe ASCII glyphs that stand in for them
+    // when stdout is not a terminal — partition `index - 1` selects from each,
+    // so the bar slice and its legend swatch always agree.
+    const PALETTE: [u8; 8] = [39, 208, 46, 201, 226, 51, 129, 214];
+    const GLYPHS: [char; 8] = ['#', '=', '+', '*', 'o', '~', 'x', '%'];
+    const FREE_ANSI: u8 = 240;
+    const FREE_GLYPH: char = '.';
+
+    let segs = segments(disk);
+    let weights: Vec<u64> = segs.iter().map(|s| s.size_bytes).collect();
+    let widths = allocate_widths(&weights, width);
+
+    // ── Bar ──────────────────────────────────────────────────────────────────
+    let mut out = String::new();
+    out.push('[');
+    for (seg, &w) in segs.iter().zip(&widths) {
+        if w == 0 {
+            continue;
+        }
+        match seg.index {
+            Some(idx) => {
+                let slot = (idx - 1) % PALETTE.len();
+                if color {
+                    let _ = write!(out, "\x1b[38;5;{}m{}\x1b[0m", PALETTE[slot], "█".repeat(w));
+                } else {
+                    out.extend(std::iter::repeat_n(GLYPHS[slot], w));
+                }
+            }
+            None => {
+                if color {
+                    let _ = write!(out, "\x1b[38;5;{FREE_ANSI}m{}\x1b[0m", "░".repeat(w));
+                } else {
+                    out.extend(std::iter::repeat_n(FREE_GLYPH, w));
+                }
+            }
+        }
+    }
+    out.push(']');
+    out.push('\n');
+
+    // ── Legend ───────────────────────────────────────────────────────────────
+    let total = disk.size_bytes.max(1);
+    for seg in &segs {
+        let pct = seg.size_bytes as f64 * 100.0 / total as f64;
+        match seg.index {
+            Some(idx) => {
+                let slot = (idx - 1) % PALETTE.len();
+                let swatch = if color {
+                    format!("\x1b[38;5;{}m█\x1b[0m", PALETTE[slot])
+                } else {
+                    GLYPHS[slot].to_string()
+                };
+                let _ = writeln!(
+                    out,
+                    " {swatch} {idx:>2}  {:<28} {:>10}  {pct:>4.1}%",
+                    seg.label,
+                    human_size(seg.size_bytes),
+                );
+            }
+            None => {
+                let swatch = if color {
+                    format!("\x1b[38;5;{FREE_ANSI}m░\x1b[0m")
+                } else {
+                    FREE_GLYPH.to_string()
+                };
+                let _ = writeln!(
+                    out,
+                    " {swatch}  -  {:<28} {:>10}  {pct:>4.1}%",
+                    "free (unallocated)",
+                    human_size(seg.size_bytes),
+                );
+            }
+        }
+    }
+    out
 }
 
 #[cfg(test)]
