@@ -8,7 +8,7 @@ description = "Forensic disk-image orchestrator — decodes E01/VMDK/VHDX/VHD/QC
 repository = "https://github.com/SecurityRonin/disk-forensic"
 keywords = ["forensics", "partition", "mbr", "gpt"]
 categories = ["parser-implementations", "filesystem"]
-exclude = ["fuzz/", ".github/", "deny.toml", "renovate.json", ".pre-commit-config.yaml"]
+exclude = ["fuzz/", ".github/", "wix/", "deny.toml", "renovate.json", ".pre-commit-config.yaml"]
 
 [dependencies]
 thiserror = "2"
@@ -62,3 +62,20 @@ tempfile = "3"
 # All OS-specific FFI now lives in livedisk-core; disk-forensic is pure
 # orchestration and contains no unsafe code.
 unsafe_code = "forbid"
+
+# Debian package (.deb) built by `cargo deb` in the release workflow. The binary
+# is `disk4n6` (the crate is `disk-forensic`); cargo-deb rewrites the
+# `target/release/` asset path for cross-target builds.
+[package.metadata.deb]
+maintainer = "SecurityRonin <security-ronin@users.noreply.github.com>"
+section = "utils"
+priority = "optional"
+extended-description = """\
+disk4n6 is a forensic disk-image orchestrator and live-device triage tool. \
+It decodes E01/VMDK/VHDX/VHD/QCOW2/DMG containers, auto-detects MBR/GPT/APM \
+partitioning, routes ISO 9660 to filesystem analysis, and lists the host's \
+physical disks and partitions with a proportional partition-layout view and \
+acquisition-integrity findings."""
+assets = [
+    ["target/release/disk4n6", "usr/bin/", "755"],
+]
