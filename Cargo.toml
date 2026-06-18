@@ -1,9 +1,10 @@
 [package]
 name = "disk-forensic"
-version = "0.8.2"
+version = "0.8.3"
 edition = "2021"
 rust-version = "1.96"
 license = "Apache-2.0"
+authors = ["Albert Hui <albert@securityronin.com>"]
 description = "Forensic disk-image orchestrator — decodes E01/VMDK/VHDX/VHD/QCOW2/DMG containers, auto-detects MBR/GPT/APM, and routes ISO 9660 to filesystem analysis"
 repository = "https://github.com/SecurityRonin/disk-forensic"
 keywords = ["forensics", "partition", "mbr", "gpt"]
