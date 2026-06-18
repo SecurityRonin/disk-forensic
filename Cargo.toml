@@ -1,6 +1,6 @@
 [package]
 name = "disk-forensic"
-version = "0.7.0"
+version = "0.8.0"
 edition = "2021"
 rust-version = "1.96"
 license = "Apache-2.0"
@@ -34,7 +34,9 @@ vmdk-forensic = "0.7.0"
 # that conflicted across the fleet). Package qcow2-core, imported as `qcow2`.
 qcow2 = { version = "0.2", package = "qcow2-core" }
 vhdx = { version = "0.2.0", package = "vhdx-core" }
-udif = "0.3.4"
+# Our own pure-Rust DMG/UDIF reader (replaces third-party `udif`, which pulled
+# C-based lzfse/bzip2/lzma). Package dmg-core, imported as `dmg`.
+dmg = { version = "0.1.2", package = "dmg-core" }
 serde = { version = "1", features = ["derive"], optional = true }
 # JSON output for the `disk-forensic --json` binary (enabled by the serde feature).
 serde_json = { version = "1", optional = true }

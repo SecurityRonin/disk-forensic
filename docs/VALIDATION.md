@@ -26,7 +26,7 @@ real examiner would encounter, then decoded back and checked.
 | VHDX | `df.vhdx` | `qemu-img convert -O vhdx` | `vhdx` | decodes → `Scheme::Mbr`, virtual size exact |
 | VHD (dynamic) | `df-dynamic.vhd` | `qemu-img convert -O vpc` | built-in (`src/vhd.rs`) | decodes → `Scheme::Mbr`, CHS-rounded size |
 | VHD (fixed) | `df-fixed.vhd` | `qemu-img convert -O vpc -o subformat=fixed` | built-in (`src/vhd.rs`) | decodes → `Scheme::Mbr`, CHS-rounded size |
-| DMG | `df.dmg` | `hdiutil convert -format UDZO` | `udif` | decodes → `Scheme::Mbr` |
+| DMG | `df.dmg` | `hdiutil convert -format UDZO` | `dmg-core` | decodes → `Scheme::Mbr` |
 | ISO 9660 | `df.iso` | `hdiutil makehybrid -iso -joliet` | `iso9660-forensic` | volume label + clean exit |
 | AFF4 | — | n/a | none yet | recognised → `OpenError::Unsupported` (synthetic magic) |
 

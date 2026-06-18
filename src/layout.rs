@@ -59,7 +59,7 @@ fn gpt_partitions(mbr: &mbr_partition_forensic::MbrAnalysis) -> (u32, Vec<Partit
     let Some(gpt) = &mbr.gpt else {
         return (512, Vec::new());
     };
-    let sector = gpt.sector_size as u64;
+    let sector = gpt.sector_size;
     let parts = gpt
         .partitions
         .iter()
@@ -89,8 +89,8 @@ fn mbr_partitions(mbr: &mbr_partition_forensic::MbrAnalysis) -> (u32, Vec<Partit
         .map(|p| {
             part(
                 format!("part{}", p.index),
-                p.lba_start as u64 * SECTOR,
-                (p.lba_end as u64 - p.lba_start as u64 + 1) * SECTOR,
+                p.lba_start * SECTOR,
+                (p.lba_end - p.lba_start + 1) * SECTOR,
                 p.declared_type.name().to_string(),
                 None,
             )
