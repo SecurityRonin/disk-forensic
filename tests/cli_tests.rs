@@ -133,3 +133,33 @@ fn json_output_emits_scheme() {
     assert!(out.status.success());
     assert!(String::from_utf8_lossy(&out.stdout).contains("Apm"));
 }
+
+#[test]
+fn list_subcommand_enumerates_or_reports_cleanly() {
+    // Exercises the live-enumeration path against the real host: lists the
+    // machine's disks (exit 0) or fails loud when raw access needs elevation
+    // (exit 1, e.g. Windows without Administrator) — never a panic. On the Linux
+    // CI runner this drives the sysfs backend end-to-end.
+    let out = bin().arg("list").output().unwrap();
+    assert!(
+        matches!(out.status.code(), Some(0) | Some(1)),
+        "list exit: {:?}, stderr: {}",
+        out.status.code(),
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn device_path_is_analysed_as_raw() {
+    // `/dev/null` is a zero-length device node: it routes through the live-device
+    // branch (sized via seek, since metadata().len() is 0), then reports an
+    // unrecognised scheme — covering the device path without a real disk.
+    let out = bin().arg("/dev/null").output().unwrap();
+    assert_eq!(out.status.code(), Some(1), "expected analysis failure exit");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("unrecognised") || stderr.contains("permission"),
+        "stderr: {stderr}"
+    );
+}
