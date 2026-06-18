@@ -30,6 +30,8 @@ enum Command {
     Analyze { path: String, json: bool },
     /// Show usage and exit (`-h`/`--help`).
     Usage,
+    /// Print the version and exit (`-V`/`--version`).
+    Version,
 }
 
 /// Parse argv (excluding argv[0]) into a [`Command`]. With no positional
@@ -62,6 +64,10 @@ fn main() -> ExitCode {
         Command::Usage => {
             eprintln!("{USAGE}");
             ExitCode::from(2)
+        }
+        Command::Version => {
+            println!("disk4n6 {}", env!("CARGO_PKG_VERSION"));
+            ExitCode::SUCCESS
         }
         Command::List { json } => run_list(json),
         Command::Analyze { path, json } => run_analyze(&path, json),
@@ -319,6 +325,12 @@ mod tests {
     fn parse_usage_only_on_help() {
         assert_eq!(parse(&["-h"]), Command::Usage);
         assert_eq!(parse(&["--help"]), Command::Usage);
+    }
+
+    #[test]
+    fn parse_version_flag() {
+        assert_eq!(parse(&["-V"]), Command::Version);
+        assert_eq!(parse(&["--version"]), Command::Version);
     }
 
     #[test]
