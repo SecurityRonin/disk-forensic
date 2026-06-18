@@ -10,8 +10,7 @@
 //! `\\.\PhysicalDrive0`). `list` shows every disk on the running machine with a
 //! proportional partition-layout bar, like a partition manager.
 
-use std::fs::File;
-use std::io::{IsTerminal, Seek, SeekFrom};
+use std::io::IsTerminal;
 use std::process::ExitCode;
 
 use disk_forensic::container::{self, ReadSeek};
@@ -73,7 +72,7 @@ fn main() -> ExitCode {
 
 /// `disk4n6 list` — enumerate the host's disks and render the unified view.
 fn run_list(json: bool) -> ExitCode {
-    let disks = match disk_forensic::live::enumerate() {
+    let disks = match livedisk::enumerate() {
         Ok(d) => d,
         Err(e) => {
             eprintln!("disk4n6: {e}");
@@ -99,12 +98,26 @@ fn run_list(json: bool) -> ExitCode {
         }
     } else {
         let color = std::io::stdout().is_terminal();
-        print!(
-            "{}",
-            disk_forensic::live::render_listing(&disks, BAR_WIDTH, color)
-        );
+        print!("{}", livedisk::render_listing(&disks, BAR_WIDTH, color));
+        print_acquisition_findings(&disks);
     }
     ExitCode::SUCCESS
+}
+
+/// Append per-disk acquisition-integrity findings (mounted, writable, removable,
+/// 512e/4Kn, synthesized) from `livedisk-forensic` beneath the listing.
+fn print_acquisition_findings(disks: &[livedisk::PhysicalDisk]) {
+    let mut header_written = false;
+    for d in disks {
+        for f in livedisk_forensic::analyse(d) {
+            if !header_written {
+                println!("Acquisition-integrity findings:");
+                header_written = true;
+            }
+            let sev = f.severity.map(|s| format!("[{s}] ")).unwrap_or_default();
+            println!("  {}  {sev}{}: {}", d.name, f.code, f.note);
+        }
+    }
 }
 
 /// Dispatch `disk4n6 <path>` to the live-device or image-file flow.
@@ -125,8 +138,8 @@ fn is_device_path(path: &str) -> bool {
 /// a zero `metadata().len()`), and run the partition analysis. Treats the device
 /// as raw — no container sniffing.
 fn analyse_device(path: &str, json: bool) -> ExitCode {
-    let mut file = match File::open(path) {
-        Ok(f) => f,
+    let (file, size) = match livedisk::open_device(std::path::Path::new(path)) {
+        Ok(d) => d,
         Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
             eprintln!("disk4n6: {path}: permission denied — re-run with sudo / as Administrator");
             return ExitCode::FAILURE;
@@ -136,17 +149,6 @@ fn analyse_device(path: &str, json: bool) -> ExitCode {
             return ExitCode::from(2);
         }
     };
-    let size = match file.seek(SeekFrom::End(0)) {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("disk4n6: {path}: {e}");
-            return ExitCode::FAILURE;
-        }
-    };
-    if let Err(e) = file.seek(SeekFrom::Start(0)) {
-        eprintln!("disk4n6: {path}: {e}");
-        return ExitCode::FAILURE;
-    }
     let mut reader: Box<dyn ReadSeek> = Box::new(file);
     report_disk(path, &mut reader, size, json, Vec::new())
 }
@@ -219,6 +221,12 @@ fn report_disk(
         let mut normalized = disk_forensic::normalize::report(&report);
         normalized.findings.extend(extra_findings);
         print!("{}", disk_forensic::report::render(&normalized));
+        // Proportional partition bar — the same visual `list` draws, now over an
+        // image's analyzed layout so evidence files get an at-a-glance view too.
+        println!();
+        let color = std::io::stdout().is_terminal();
+        let disk = disk_forensic::layout::from_report(&report, label, size);
+        print!("{}", livedisk::render_disk_bar(&disk, BAR_WIDTH, color));
     }
 
     if report.has_anomalies() {

@@ -1,0 +1,5 @@
+[toolchain]
+# Dev/CI toolchain pinned to current stable (fleet policy). disk-forensic is an
+# application, so its declared MSRV (Cargo.toml `rust-version`) matches this pin.
+channel = "1.96.0"
+components = ["rustfmt", "clippy"]

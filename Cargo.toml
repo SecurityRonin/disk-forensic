@@ -2,7 +2,7 @@
 name = "disk-forensic"
 version = "0.6.0"
 edition = "2021"
-rust-version = "1.88"
+rust-version = "1.96"
 license = "Apache-2.0"
 description = "Forensic disk-image orchestrator — decodes E01/VMDK/VHDX/VHD/QCOW2/DMG containers, auto-detects MBR/GPT/APM, and routes ISO 9660 to filesystem analysis"
 repository = "https://github.com/SecurityRonin/disk-forensic"
@@ -21,6 +21,10 @@ apm-partition-forensic = "0.5.0"
 # Filesystem analyzer for optical (ISO 9660) images — disk4n6's FS dimension.
 iso9660-forensic = "0.6.0"
 forensicnomicon = "0.5"
+# Live-system device enumeration + acquisition-integrity findings (fleet crates).
+# The OS-specific FFI lives in livedisk-core, so disk-forensic stays unsafe-free.
+livedisk = { version = "0.1.0", package = "livedisk-core" }
+livedisk-forensic = "0.1.0"
 # Container/image decoders (decode → Read+Seek view of the disk).
 ewf = "0.2.1"
 vmdk = { version = "0.7.0", package = "vmdk-core" }
@@ -46,37 +50,15 @@ serde = [
     "gpt-partition-forensic/serde",
     "iso9660-forensic/serde",
     "forensicnomicon/serde",
+    "livedisk/serde",
+    "livedisk-forensic/serde",
 ]
-
-# ── Live-system device enumeration (the `live` module) ───────────────────────
-# Discovery of physical disks/partitions on the running host is inherently
-# OS-specific. Linux needs nothing (a sysfs file walk); macOS and Windows reach
-# the kernel through FFI, isolated to src/live/{macos,windows}.rs.
-[target.'cfg(target_os = "macos")'.dependencies]
-# IOKit IOMedia registry walk for the device tree; core-foundation gives safe
-# wrappers over the CFDictionary/CFString/CFNumber property values.
-io-kit-sys = "0.5"
-core-foundation = "0.10"
-core-foundation-sys = "0.8"
-
-[target.'cfg(windows)'.dependencies]
-# DeviceIoControl IOCTLs (drive layout, length, geometry) over \\.\PhysicalDriveN.
-windows-sys = { version = "0.61", features = [
-    "Win32_Foundation",
-    "Win32_Security",
-    "Win32_Storage_FileSystem",
-    "Win32_System_Ioctl",
-    "Win32_System_IO",
-] }
 
 [dev-dependencies]
 serde_json = "1"
 tempfile = "3"
 
 [lints.rust]
-# `forbid` everywhere except the two platform FFI backends (macOS IOKit, Windows
-# DeviceIoControl), which carry a scoped `#[allow(unsafe_code)]` with `// SAFETY:`
-# notes on every call. `deny` lets that scoped allow compile while still failing
-# any unannotated unsafe in the rest of the crate. Linux + all pure logic remain
-# unsafe-free.
-unsafe_code = "deny"
+# All OS-specific FFI now lives in livedisk-core; disk-forensic is pure
+# orchestration and contains no unsafe code.
+unsafe_code = "forbid"

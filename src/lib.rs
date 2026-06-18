@@ -29,7 +29,7 @@
 use std::io::{Read, Seek, SeekFrom};
 
 pub mod container;
-pub mod live;
+pub mod layout;
 pub mod normalize;
 pub mod report;
 mod vhd;
