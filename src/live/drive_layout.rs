@@ -45,13 +45,70 @@ pub(super) struct ParsedLayout {
 /// Parse a `DRIVE_LAYOUT_INFORMATION_EX` buffer. Empty (zero-length) slots —
 /// e.g. unused MBR table entries — are skipped.
 pub(super) fn parse_drive_layout(buf: &[u8]) -> ParsedLayout {
-    unimplemented!("RED: parse_drive_layout")
+    if buf.len() < 8 {
+        return ParsedLayout {
+            style: u32::MAX,
+            partitions: Vec::new(),
+        };
+    }
+    let style = u32_le(buf, 0);
+    let count = u32_le(buf, 4) as usize;
+    let mut partitions = Vec::new();
+    for i in 0..count {
+        let e = PARTITION_ENTRY_OFFSET + i * ENTRY_SIZE;
+        if e + ENTRY_SIZE > buf.len() {
+            break;
+        }
+        let entry = &buf[e..e + ENTRY_SIZE];
+        let length = i64_le(entry, 16).max(0) as u64;
+        if length == 0 {
+            continue;
+        }
+        let (type_desc, name) = match style {
+            STYLE_GPT => {
+                let name = utf16_name(&entry[72..144]);
+                (
+                    Some(format_guid(&entry[32..48])),
+                    (!name.is_empty()).then_some(name),
+                )
+            }
+            STYLE_MBR => {
+                let ty = entry[32];
+                if ty == 0 {
+                    continue;
+                }
+                (Some(format!("0x{ty:02X}")), None)
+            }
+            _ => (None, None),
+        };
+        partitions.push(ParsedPartition {
+            number: u32_le(entry, 24),
+            start_offset: i64_le(entry, 8).max(0) as u64,
+            length,
+            type_desc,
+            name,
+        });
+    }
+    ParsedLayout { style, partitions }
 }
 
 /// Format a 16-byte little-endian Windows GUID as its canonical uppercase
 /// string (`EBD0A0A2-B9E5-4433-87C0-68B6B72699C7`).
 fn format_guid(b: &[u8]) -> String {
-    unimplemented!("RED: format_guid")
+    format!(
+        "{:08X}-{:04X}-{:04X}-{:02X}{:02X}-{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}",
+        u32_le(b, 0),
+        u16_le(b, 4),
+        u16_le(b, 6),
+        b[8],
+        b[9],
+        b[10],
+        b[11],
+        b[12],
+        b[13],
+        b[14],
+        b[15],
+    )
 }
 
 fn u16_le(b: &[u8], o: usize) -> u16 {

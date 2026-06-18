@@ -63,6 +63,7 @@ core-foundation-sys = "0.8"
 # DeviceIoControl IOCTLs (drive layout, length, geometry) over \\.\PhysicalDriveN.
 windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
+    "Win32_Security",
     "Win32_Storage_FileSystem",
     "Win32_System_Ioctl",
     "Win32_System_IO",
