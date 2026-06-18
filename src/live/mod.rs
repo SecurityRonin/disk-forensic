@@ -21,6 +21,11 @@ use core::fmt::Write as _;
 mod bar;
 pub use bar::render_disk_bar;
 
+// Pure sysfs parsing for the Linux backend lives in its own module compiled on
+// every target, so its tests run regardless of host; only the file/dir I/O in
+// `linux` is Linux-gated. `dead_code` is expected when not building for Linux.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+mod sysfs;
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "macos")]
