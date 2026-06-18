@@ -41,17 +41,22 @@ enum Command {
 fn parse_args(args: impl Iterator<Item = String>) -> Command {
     let mut json = false;
     let mut help = false;
+    let mut version = false;
     let mut path: Option<String> = None;
     for arg in args {
         match arg.as_str() {
             "--json" => json = true,
             "-h" | "--help" => help = true,
+            "-V" | "--version" => version = true,
             _ if path.is_none() => path = Some(arg),
             _ => {}
         }
     }
     if help {
         return Command::Usage;
+    }
+    if version {
+        return Command::Version;
     }
     match path {
         Some(path) => Command::Analyze { path, json },
