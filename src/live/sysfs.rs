@@ -46,12 +46,83 @@ pub(super) struct RawPart {
 /// only (device name with the `/dev/` prefix stripped). Mount-point octal
 /// escapes (`\040` → space) are decoded.
 pub(super) fn parse_mounts(content: &str) -> Vec<(String, String, String)> {
-    unimplemented!("RED: parse_mounts")
+    content
+        .lines()
+        .filter_map(|line| {
+            let mut f = line.split_whitespace();
+            let dev = f.next()?.strip_prefix("/dev/")?;
+            let mount = f.next()?;
+            let fs = f.next()?;
+            Some((dev.to_string(), decode_octal(mount), fs.to_string()))
+        })
+        .collect()
 }
 
 /// Build the unified disk model from raw sysfs strings and `/proc/mounts`.
 pub(super) fn build(disks: Vec<RawDisk>, mounts_content: &str) -> Vec<PhysicalDisk> {
-    unimplemented!("RED: build")
+    let mounts = parse_mounts(mounts_content);
+    let lookup = |name: &str| {
+        mounts
+            .iter()
+            .find(|(dev, _, _)| dev == name)
+            .map(|(_, mp, fs)| (mp.clone(), fs.clone()))
+    };
+
+    let mut out: Vec<PhysicalDisk> = disks
+        .into_iter()
+        .map(|d| {
+            let logical = match parse_u64(&d.logical) as u32 {
+                0 => 512,
+                n => n,
+            };
+            let physical = match parse_u64(&d.physical) as u32 {
+                0 => logical,
+                n => n,
+            };
+            let mut partitions: Vec<Partition> = d
+                .partitions
+                .iter()
+                .map(|p| {
+                    let (mount_point, filesystem) = match lookup(&p.name) {
+                        Some((mp, fs)) => (Some(mp), Some(fs)),
+                        None => (None, None),
+                    };
+                    Partition {
+                        device_path: format!("/dev/{}", p.name),
+                        name: p.name.clone(),
+                        start_offset: parse_u64(&p.start) * SYSFS_SECTOR,
+                        size_bytes: parse_u64(&p.size) * SYSFS_SECTOR,
+                        partition_type: None,
+                        mount_point,
+                        filesystem,
+                        label: None,
+                    }
+                })
+                .collect();
+            partitions.sort_by_key(|p| p.start_offset);
+
+            PhysicalDisk {
+                device_path: format!("/dev/{}", d.name),
+                name: d.name.clone(),
+                size_bytes: parse_u64(&d.size) * SYSFS_SECTOR,
+                logical_sector_size: logical,
+                physical_sector_size: physical,
+                model: d
+                    .model
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|m| !m.is_empty())
+                    .map(str::to_string),
+                serial: None,
+                removable: parse_u64(&d.removable) == 1,
+                read_only: parse_u64(&d.ro) == 1,
+                synthesized: d.name.starts_with("dm-"),
+                partitions,
+            }
+        })
+        .collect();
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    out
 }
 
 /// Trim and parse a sysfs integer file, defaulting to 0 on any garbage.
