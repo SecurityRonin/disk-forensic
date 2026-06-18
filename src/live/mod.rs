@@ -28,10 +28,15 @@ pub use bar::render_disk_bar;
 mod sysfs;
 #[cfg(target_os = "linux")]
 mod linux;
-#[cfg(target_os = "macos")]
-mod macos;
+
+// Pure DRIVE_LAYOUT_INFORMATION_EX byte parsing for the Windows backend, on the
+// same always-compiled / Windows-gated-I/O split as `sysfs`/`linux`.
+#[cfg_attr(not(windows), allow(dead_code))]
+mod drive_layout;
 #[cfg(windows)]
 mod windows;
+#[cfg(target_os = "macos")]
+mod macos;
 
 /// A whole physical (or, on macOS, synthesized) disk on the live system.
 ///
