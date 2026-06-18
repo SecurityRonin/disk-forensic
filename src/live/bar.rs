@@ -14,6 +14,37 @@ use core::fmt::Write as _;
 
 use super::{human_size, PhysicalDisk};
 
+/// ANSI 256-colour codes and the pipe-safe ASCII glyphs that stand in for them
+/// when stdout is not a terminal. A slot index selects the same entry from each,
+/// so a bar slice and its legend swatch always agree.
+const PALETTE: [u8; 8] = [39, 208, 46, 201, 226, 51, 129, 214];
+const GLYPHS: [char; 8] = ['#', '=', '+', '*', 'o', '~', 'x', '%'];
+/// Dim grey + `.` for unallocated space.
+const FREE_ANSI: u8 = 240;
+const FREE_GLYPH: char = '.';
+
+/// Append `w` columns of a slice to the bar: a coloured solid block (TTY) or the
+/// pipe-safe `ascii` glyph repeated.
+fn push_slice(out: &mut String, color: bool, ansi: u8, ascii: char, w: usize) {
+    if w == 0 {
+        return;
+    }
+    if color {
+        let _ = write!(out, "\x1b[38;5;{ansi}m{}\x1b[0m", "█".repeat(w));
+    } else {
+        out.extend(std::iter::repeat_n(ascii, w));
+    }
+}
+
+/// A one-character legend swatch matching [`push_slice`]'s colouring.
+fn swatch(color: bool, ansi: u8, ascii: char) -> String {
+    if color {
+        format!("\x1b[38;5;{ansi}m█\x1b[0m")
+    } else {
+        ascii.to_string()
+    }
+}
+
 /// One drawable slice of a disk: a partition, or an unallocated gap.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct Segment {
@@ -110,14 +141,6 @@ pub(super) fn allocate_widths(weights: &[u64], total: usize) -> Vec<usize> {
 /// inner column count; `color` selects ANSI-coloured solid blocks (TTY) versus
 /// ASCII glyphs (pipe-safe).
 pub fn render_disk_bar(disk: &PhysicalDisk, width: usize, color: bool) -> String {
-    // ANSI 256-colour codes and the pipe-safe ASCII glyphs that stand in for them
-    // when stdout is not a terminal — partition `index - 1` selects from each,
-    // so the bar slice and its legend swatch always agree.
-    const PALETTE: [u8; 8] = [39, 208, 46, 201, 226, 51, 129, 214];
-    const GLYPHS: [char; 8] = ['#', '=', '+', '*', 'o', '~', 'x', '%'];
-    const FREE_ANSI: u8 = 240;
-    const FREE_GLYPH: char = '.';
-
     let segs = segments(disk);
     let weights: Vec<u64> = segs.iter().map(|s| s.size_bytes).collect();
     let widths = allocate_widths(&weights, width);
@@ -126,25 +149,12 @@ pub fn render_disk_bar(disk: &PhysicalDisk, width: usize, color: bool) -> String
     let mut out = String::new();
     out.push('[');
     for (seg, &w) in segs.iter().zip(&widths) {
-        if w == 0 {
-            continue;
-        }
         match seg.index {
             Some(idx) => {
                 let slot = (idx - 1) % PALETTE.len();
-                if color {
-                    let _ = write!(out, "\x1b[38;5;{}m{}\x1b[0m", PALETTE[slot], "█".repeat(w));
-                } else {
-                    out.extend(std::iter::repeat_n(GLYPHS[slot], w));
-                }
+                push_slice(&mut out, color, PALETTE[slot], GLYPHS[slot], w);
             }
-            None => {
-                if color {
-                    let _ = write!(out, "\x1b[38;5;{FREE_ANSI}m{}\x1b[0m", "░".repeat(w));
-                } else {
-                    out.extend(std::iter::repeat_n(FREE_GLYPH, w));
-                }
-            }
+            None => push_slice(&mut out, color, FREE_ANSI, FREE_GLYPH, w),
         }
     }
     out.push(']');
@@ -157,32 +167,80 @@ pub fn render_disk_bar(disk: &PhysicalDisk, width: usize, color: bool) -> String
         match seg.index {
             Some(idx) => {
                 let slot = (idx - 1) % PALETTE.len();
-                let swatch = if color {
-                    format!("\x1b[38;5;{}m█\x1b[0m", PALETTE[slot])
-                } else {
-                    GLYPHS[slot].to_string()
-                };
                 let _ = writeln!(
                     out,
-                    " {swatch} {idx:>2}  {:<28} {:>10}  {pct:>4.1}%",
+                    " {} {idx:>2}  {:<28} {:>10}  {pct:>4.1}%",
+                    swatch(color, PALETTE[slot], GLYPHS[slot]),
                     seg.label,
                     human_size(seg.size_bytes),
                 );
             }
             None => {
-                let swatch = if color {
-                    format!("\x1b[38;5;{FREE_ANSI}m░\x1b[0m")
-                } else {
-                    FREE_GLYPH.to_string()
-                };
                 let _ = writeln!(
                     out,
-                    " {swatch}  -  {:<28} {:>10}  {pct:>4.1}%",
+                    " {}  -  {:<28} {:>10}  {pct:>4.1}%",
+                    swatch(color, FREE_ANSI, FREE_GLYPH),
                     "free (unallocated)",
                     human_size(seg.size_bytes),
                 );
             }
         }
+    }
+    out
+}
+
+/// Render an at-a-glance overview comparing the **physical** disks' capacities —
+/// a horizontal bar chart, one disk per line, each bar's length proportional to
+/// that disk's size relative to the largest, so the biggest disk fills the row
+/// and the rest read as fractions of it. Each line also shows the absolute size
+/// and the disk's share of total storage. Synthesized disks (APFS containers,
+/// device-mapper) are excluded because they overlay physical space rather than
+/// add to it. Returns empty when fewer than two physical disks exist.
+pub fn render_overview(disks: &[PhysicalDisk], width: usize, color: bool) -> String {
+    let physical: Vec<&PhysicalDisk> = disks.iter().filter(|d| !d.synthesized).collect();
+    if physical.len() < 2 {
+        return String::new();
+    }
+    let total: u64 = physical.iter().map(|d| d.size_bytes).sum();
+    let max = physical
+        .iter()
+        .map(|d| d.size_bytes)
+        .max()
+        .unwrap_or(0)
+        .max(1);
+    let name_w = physical
+        .iter()
+        .map(|d| d.name.chars().count())
+        .max()
+        .unwrap_or(0);
+
+    let mut out = String::new();
+    let _ = writeln!(
+        out,
+        "All storage ({} physical disks, {} total):",
+        physical.len(),
+        human_size(total)
+    );
+    for (i, d) in physical.iter().enumerate() {
+        let slot = i % PALETTE.len();
+        // Bar length scaled to the largest disk; a non-empty disk shows at least
+        // one column so it never vanishes next to a much larger one.
+        let mut fill = (u128::from(d.size_bytes) * width as u128 / u128::from(max)) as usize;
+        if d.size_bytes > 0 && fill == 0 {
+            fill = 1;
+        }
+        fill = fill.min(width);
+        let pct = d.size_bytes as f64 * 100.0 / total.max(1) as f64;
+
+        let mut bar = String::new();
+        push_slice(&mut bar, color, PALETTE[slot], GLYPHS[slot], fill);
+        bar.extend(std::iter::repeat_n(' ', width - fill));
+        let _ = writeln!(
+            out,
+            " {:<name_w$}  [{bar}] {:>10}  {pct:>4.1}%",
+            d.name,
+            human_size(d.size_bytes),
+        );
     }
     out
 }
@@ -303,5 +361,76 @@ mod tests {
         let d = disk(100, vec![part("p1", 0, 100, "T")]);
         let out = render_disk_bar(&d, 20, true);
         assert!(out.contains("\x1b["), "color mode must emit ANSI escapes");
+    }
+
+    fn whole(name: &str, size: u64, synthesized: bool) -> PhysicalDisk {
+        let mut d = disk(size, vec![]);
+        d.name = name.into();
+        d.device_path = format!("/dev/{name}");
+        d.synthesized = synthesized;
+        d
+    }
+
+    /// The `width` columns inside the first `[...]` on a line, and how many are
+    /// filled (non-space).
+    fn bar_inner(line: &str) -> (usize, usize) {
+        let open = line.find('[').unwrap();
+        let close = line[open..].find(']').unwrap() + open;
+        let inner = &line[open + 1..close];
+        (
+            inner.chars().count(),
+            inner.chars().filter(|c| *c != ' ').count(),
+        )
+    }
+
+    #[test]
+    fn overview_is_a_per_disk_bar_chart_excluding_synthesized() {
+        // disk0 4 TB + disk4 2 TB + disk5 8 TB = 14 TB; the APFS-synthesized
+        // disk3 (overlaying disk0) must NOT inflate the total or appear.
+        let disks = vec![
+            whole("disk0", 4_000_000_000_000, false),
+            whole("disk3", 4_000_000_000_000, true),
+            whole("disk4", 2_000_000_000_000, false),
+            whole("disk5", 8_000_000_000_000, false),
+        ];
+        let out = render_overview(&disks, 80, false);
+        let header = out.lines().next().unwrap();
+        assert!(header.contains("3 physical disks"), "{header}");
+        assert!(
+            header.contains("14.0 TB"),
+            "total excludes synthesized: {header}"
+        );
+
+        // One bar line per physical disk; each bar is exactly `width` columns.
+        let line = |name: &str| out.lines().find(|l| l.contains(name)).unwrap();
+        let (w0, f0) = bar_inner(line("disk0"));
+        let (w4, f4) = bar_inner(line("disk4"));
+        let (w5, f5) = bar_inner(line("disk5"));
+        assert_eq!((w0, w4, w5), (80, 80, 80), "every bar spans the full width");
+        // Lengths are proportional to size, scaled so the largest (disk5) fills.
+        assert_eq!(f5, 80, "largest disk fills its bar");
+        assert_eq!(f0, 40, "4 TB is half of the 8 TB max");
+        assert_eq!(f4, 20, "2 TB is a quarter of the 8 TB max");
+        // Per-disk share of total is shown; the synthesized disk is absent.
+        assert!(out.contains("57.1%")); // 8/14
+        assert!(
+            !out.contains("disk3"),
+            "synthesized disk excluded from overview"
+        );
+    }
+
+    #[test]
+    fn overview_empty_when_fewer_than_two_physical_disks() {
+        assert_eq!(render_overview(&[], 70, false), "");
+        assert_eq!(
+            render_overview(&[whole("disk0", 1_000_000_000_000, false)], 70, false),
+            ""
+        );
+        // A lone physical disk plus synthesized overlays still has nothing to compare.
+        let one_physical = vec![
+            whole("disk0", 1_000_000_000_000, false),
+            whole("disk1", 500_000_000, true),
+        ];
+        assert_eq!(render_overview(&one_physical, 70, false), "");
     }
 }

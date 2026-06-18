@@ -19,7 +19,7 @@
 use core::fmt::Write as _;
 
 mod bar;
-pub use bar::render_disk_bar;
+pub use bar::{render_disk_bar, render_overview};
 
 // Pure sysfs parsing for the Linux backend lives in its own module compiled on
 // every target, so its tests run regardless of host; only the file/dir I/O in
@@ -227,6 +227,13 @@ pub fn render_listing(disks: &[PhysicalDisk], width: usize, color: bool) -> Stri
         return "No disks found.\n".to_string();
     }
     let mut s = String::new();
+    // At-a-glance comparison of the physical disks' capacities, then per-disk
+    // detail. Empty (and skipped) when there are fewer than two physical disks.
+    let overview = render_overview(disks, width, color);
+    if !overview.is_empty() {
+        s.push_str(&overview);
+        s.push('\n');
+    }
     for d in disks {
         let kind = if d.synthesized { " (synthesized)" } else { "" };
         let model = d
