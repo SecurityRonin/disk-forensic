@@ -24,19 +24,19 @@ pub use bar::render_disk_bar;
 // Pure sysfs parsing for the Linux backend lives in its own module compiled on
 // every target, so its tests run regardless of host; only the file/dir I/O in
 // `linux` is Linux-gated. `dead_code` is expected when not building for Linux.
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
-mod sysfs;
 #[cfg(target_os = "linux")]
 mod linux;
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+mod sysfs;
 
 // Pure DRIVE_LAYOUT_INFORMATION_EX byte parsing for the Windows backend, on the
 // same always-compiled / Windows-gated-I/O split as `sysfs`/`linux`.
 #[cfg_attr(not(windows), allow(dead_code))]
 mod drive_layout;
-#[cfg(windows)]
-mod windows;
 #[cfg(target_os = "macos")]
 mod macos;
+#[cfg(windows)]
+mod windows;
 
 /// A whole physical (or, on macOS, synthesized) disk on the live system.
 ///
@@ -215,6 +215,17 @@ fn partition_info(p: &Partition) -> String {
     parts.join("  ")
 }
 
+/// Render the full `disk4n6 list` view: each disk as a header line followed by
+/// its proportional partition bar (see [`render_disk_bar`]). Synthesized disks
+/// (macOS APFS containers, Linux device-mapper) whose volumes share space rather
+/// than occupy fixed extents get a plain volume list instead of a — misleading —
+/// proportional bar. `color` selects ANSI vs ASCII (the caller passes whether
+/// stdout is a TTY).
+#[must_use]
+pub fn render_listing(_disks: &[PhysicalDisk], _width: usize, _color: bool) -> String {
+    unimplemented!("RED: render_listing")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -296,5 +307,31 @@ mod tests {
         d.removable = true;
         let out = render_disks(&[d]);
         assert!(out.contains("removable"));
+    }
+
+    #[test]
+    fn render_listing_draws_bar_for_physical_disk() {
+        let out = render_listing(&[sample_disk()], 40, false);
+        assert!(out.contains("/dev/disk0"));
+        assert!(out.contains("4.0 TB"));
+        assert!(out.contains("APPLE SSD AP4096"));
+        assert!(out.contains('['), "physical disk gets a proportional bar");
+    }
+
+    #[test]
+    fn render_listing_lists_volumes_for_synthesized_disk() {
+        let mut d = sample_disk();
+        d.synthesized = true;
+        d.model = None;
+        let out = render_listing(&[d], 40, false);
+        assert!(out.contains("(synthesized)"));
+        assert!(out.contains("share container space"));
+        // No proportional bar for shared-space volumes.
+        assert!(!out.contains('['));
+    }
+
+    #[test]
+    fn render_listing_empty_is_explicit() {
+        assert_eq!(render_listing(&[], 40, false), "No disks found.\n");
     }
 }
