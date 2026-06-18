@@ -98,8 +98,8 @@ jobs:
         with:
           token: ${{ secrets.TAP_GITHUB_TOKEN }}
           repository: SecurityRonin/homebrew-tap
-          event-type: update-formula
-          client-payload: '{"formula": "disk4n6", "version": "${{ github.ref_name }}"}'
+          event-type: update-disk4n6
+          client-payload: '{"version": "${{ github.ref_name }}"}'
 
   crate:
     needs: release
