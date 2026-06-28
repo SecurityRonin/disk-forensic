@@ -1,6 +1,6 @@
 [package]
 name = "disk-forensic"
-version = "0.8.6"
+version = "0.9.0"
 edition = "2021"
 rust-version = "1.96"
 license = "Apache-2.0"
@@ -16,25 +16,25 @@ thiserror = "2"
 # Sibling scheme parsers (one per partitioning scheme) and the knowledge base.
 # Partition-scheme analyzers (each now a *-partition-forensic workspace with a
 # *-partition-core reader).
-mbr-partition-forensic = "0.5.1"
-gpt-partition-forensic = "0.5.0"
-apm-partition-forensic = "0.5.0"
+mbr-partition-forensic = "0.6.1"
+gpt-partition-forensic = "0.6.0"
+apm-partition-forensic = "0.6.0"
 # Filesystem analyzer for optical (ISO 9660) images — disk4n6's FS dimension.
-iso9660-forensic = "0.6.0"
-forensicnomicon = "0.11"
+iso9660-forensic = "0.7.0"
+forensicnomicon = "1"
 # Live-system device enumeration + acquisition-integrity findings (fleet crates).
 # The OS-specific FFI lives in livedisk-core, so disk-forensic stays unsafe-free.
-livedisk = { version = "0.1.3", package = "livedisk-core" }
-livedisk-forensic = "0.1.3"
+livedisk = { version = "0.2.0", package = "livedisk-core" }
+livedisk-forensic = "0.2.0"
 # Container/image decoders (decode → Read+Seek view of the disk).
-ewf = "0.2.1"
-vmdk = { version = "0.7.0", package = "vmdk-core" }
+ewf = "0.3.0"
+vmdk = { version = "0.8.0", package = "vmdk-core" }
 # VMDK forensic analyzer — its analyse() findings aggregate into the report.
-vmdk-forensic = "0.7.0"
+vmdk-forensic = "0.8.0"
 # Our own QCOW2 reader (replaces third-party `qcow`, which pulled an ancient zstd
 # that conflicted across the fleet). Package qcow2-core, imported as `qcow2`.
-qcow2 = { version = "0.2", package = "qcow2-core" }
-vhdx = { version = "0.2.0", package = "vhdx-core" }
+qcow2 = { version = "0.3.1", package = "qcow2-core" }
+vhdx = { version = "0.3.0", package = "vhdx-core" }
 # Our own pure-Rust DMG/UDIF reader (replaces third-party `udif`, which pulled
 # C-based lzfse/bzip2/lzma). Package dmg-core, imported as `dmg`.
 dmg = { version = "0.1.2", package = "dmg-core" }
