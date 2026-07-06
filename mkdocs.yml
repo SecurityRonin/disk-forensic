@@ -41,6 +41,7 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - Architecture: architecture.md
   - Validation: VALIDATION.md
   - Privacy Policy: privacy.md
   - Terms of Service: terms.md

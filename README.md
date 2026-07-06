@@ -6,7 +6,9 @@
 [![CI](https://github.com/SecurityRonin/disk-forensic/actions/workflows/ci.yml/badge.svg)](https://github.com/SecurityRonin/disk-forensic/actions)
 [![Sponsor](https://img.shields.io/badge/sponsor-h4x0r-ea4aaa?logo=github-sponsors)](https://github.com/sponsors/h4x0r)
 
-**`disk4n6` surfaces the structure — and the anomalies — of any disk, whether it's a forensic image on your desk or the live host under your fingers.** Point it at an E01 / VMDK / VHDX / VHD / QCOW2 / DMG / raw `dd` / ISO and it decodes the wrapper, identifies the partitioning scheme (MBR / GPT / APM), and runs the right forensic parser. Run it with no arguments and it maps every physical disk and partition on the running system — macOS, Linux, and Windows, one unified output — with the acquisition-integrity findings you need *before* you image.
+**`disk4n6` is the fleet's universal forensic disk layer: point it at any container — E01, VMDK, VHDX, VHD, QCOW2, DMG, raw `dd`, or ISO — and it decodes the wrapper, identifies the partitioning scheme (MBR / GPT / APM), and runs the right forensic parser. Run it bare and it maps every physical disk and partition on the live system — macOS, Linux, and Windows in one unified output — with acquisition-integrity findings you need before you image.**
+
+The library is also the foundation for the fleet's [universal forensic VFS](#architecture): a layered trait model that will let `issen`, `4n6mount`, and `disk4n6` share one open-any-image entry point rather than three parallel detection stacks.
 
 ## See it work in 30 seconds
 
@@ -41,7 +43,7 @@ Acquisition-integrity findings:
   disk0  [HIGH] LIVE-MOUNTED: device has mounted volume(s) during acquisition; live writes may alter the image — consistent with imaging a running system
 ```
 
-The overview bar scales every disk against the largest, so relative sizes read at a glance; each per-disk bar lays out partitions and free space proportionally, the largest partition coloured to match its disk in the overview.
+The overview bar scales every disk against the largest so relative sizes read at a glance; each per-disk bar lays out partitions and free space proportionally.
 
 **Analyse an image** — hand it the evidence:
 
@@ -68,10 +70,7 @@ Disk GUID:       9D71FE48-F2FB-43F1-9326-36644D4D4E70
 Revision:        1.0
 ```
 
-That E01 was decoded, the protective MBR cross-checked, and the GPT parsed — one
-command, no intermediate files. Exit code is `0` when clean and `1` when any
-anomaly is present, so it drops straight into a triage pipeline. Add `--json`
-(build with `--features serde`) for machine-readable output in either mode.
+That E01 was decoded, the protective MBR cross-checked, and the GPT parsed — one command, no intermediate files. Exit code is `0` when clean and `1` when any anomaly is present, so it drops straight into a triage pipeline. Add `--json` (build with `--features serde`) for machine-readable output in either mode.
 
 ## Live triage: one output across macOS, Linux, and Windows
 
@@ -82,7 +81,7 @@ The findings are observations bearing on a forensically sound acquisition — ne
 | Code | Meaning |
 |---|---|
 | `LIVE-MOUNTED` | a volume is mounted during acquisition (live writes may alter the image) |
-| `LIVE-WRITABLE` | the device **being acquired** is writable — no write-blocker engaged. Shown when you point `disk4n6` at a specific target device, not in the host overview (every live disk is writable, so flagging it there is noise) |
+| `LIVE-WRITABLE` | the device **being acquired** is writable — no write-blocker engaged. Shown when you point `disk4n6` at a specific target device, not in the host overview |
 | `LIVE-REMOVABLE` | removable media |
 | `LIVE-SECTOR-4KN` | logical/physical sector sizes differ (512e / 4Kn) |
 | `LIVE-SYNTHESIZED` | a synthesized container overlay (APFS container, device-mapper/LVM), not a backing physical store |
@@ -91,8 +90,7 @@ The findings are observations bearing on a forensically sound acquisition — ne
 
 ## Feed it almost any image — the wrapper is detected by content, not extension
 
-`disk4n6` sniffs the container magic, decodes it to a `Read + Seek` view of the
-raw disk, and analyses that. Rename a `.vmdk` to `.bin` and it still works.
+`disk4n6` sniffs the container magic, decodes it to a `Read + Seek` view of the raw disk, and analyses that. Rename a `.vmdk` to `.bin` and it still works.
 
 | Input | Handling |
 |---|---|
@@ -104,21 +102,13 @@ raw disk, and analyses that. Rename a `.vmdk` to `.bin` and it still works.
 | **QCOW2** (QEMU/KVM) | decoded |
 | **DMG** (Apple UDIF) | decoded — pure-Rust codecs (ADC / zlib / bzip2 / LZFSE / LZMA), no C dependencies |
 | **ISO 9660** (optical) | routed to filesystem analysis (see below) |
-| AFF4 | recognised, but decode to raw first — decoder not yet wired |
+| AFF4 | recognised; decoder not yet wired |
 
-A corrupt or unsupported-variant container fails **loud** with a clear decode
-error rather than silently producing wrong output. The same proportional
-partition-layout view shown for live disks renders for images too, so the disk
-under analysis reads the same way whether it came off the wire or off the
-shelf.
+A corrupt or unsupported-variant container fails loud with a clear decode error rather than silently producing wrong output.
 
 ## Optical media gets a filesystem report
 
-An ISO is a filesystem, not a partitioned disk, so `disk4n6` routes it to
-[`iso9660-forensic`](https://github.com/SecurityRonin/iso9660-forensic) and
-renders the same normalized findings / provenance / **timeline** view — volume
-identity, mastering-tool fingerprint, Rock Ridge authoring owners, structural
-anomalies, and the reconstructed authoring window:
+An ISO is a filesystem, not a partitioned disk, so `disk4n6` routes it to [`iso9660-forensic`](https://github.com/SecurityRonin/iso9660-forensic) and renders the same normalized findings / provenance / timeline view — volume identity, mastering-tool fingerprint, Rock Ridge authoring owners, structural anomalies, and the reconstructed authoring window:
 
 ```console
 $ disk4n6 image.iso
@@ -138,16 +128,13 @@ Provenance:
   Rock Ridge owners: uids [501], gids [0]  (iso9660-forensic)
 ```
 
-A **Timeline** section then reconstructs the volume's authoring window from the
-PVD and file-recorded times — on real media these diverge into a span you can
-reason about (a file dated *after* its own volume, or in the future, becomes a
-finding).
+A **Timeline** section then reconstructs the volume's authoring window from the PVD and file-recorded times — on real media these diverge into a span you can reason about.
 
 ## Rust library
 
 ```toml
 [dependencies]
-disk-forensic = "0.8"
+disk-forensic = "0.9"
 ```
 
 ```rust
@@ -165,13 +152,7 @@ match disk_forensic::analyse_disk(&mut img, opened.size)? {
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
-`analyse_disk` takes any `Read + Seek`, so you can also feed it a raw image
-directly. A disk with no recognised scheme (e.g. a filesystem written straight to
-the media) returns [`Error::UnknownScheme`] rather than mis-parsing. Each
-analyzer normalizes into the shared
-[`forensicnomicon::report`](https://github.com/SecurityRonin/forensicnomicon)
-model, so findings and provenance render uniformly across every scheme and the
-ISO filesystem layer.
+`analyse_disk` takes any `Read + Seek`, so you can feed it a raw image directly. A disk with no recognised scheme returns [`Error::UnknownScheme`] rather than mis-parsing. Each analyser normalizes into the shared [`forensicnomicon::report`](https://github.com/SecurityRonin/forensicnomicon) model, so findings and provenance render uniformly across every scheme and the ISO filesystem layer.
 
 For live enumeration, depend on [`livedisk-core`](https://crates.io/crates/livedisk-core) directly:
 
@@ -184,24 +165,58 @@ for disk in livedisk::enumerate()? {
 
 ## The scheme parsers
 
-`disk-forensic` is pure orchestration — it classifies the scheme using the cited
-magics in [`forensicnomicon`](https://github.com/SecurityRonin/forensicnomicon)
-and delegates every real parse to a focused, dependency-light sibling. Use them
-directly when you already know the scheme, or through this crate when you don't:
+`disk-forensic` is pure orchestration — it classifies the scheme using the cited magics in [`forensicnomicon`](https://github.com/SecurityRonin/forensicnomicon) and delegates every real parse to a focused, dependency-light sibling. Use them directly when you already know the scheme, or through this crate when you don't:
 
 | Crate | Scheme |
 |---|---|
-| [`mbr-partition-forensic`](https://github.com/SecurityRonin/mbr-partition-forensic) | Master Boot Record — boot-code fingerprinting, gap/slack carving, **per-partition VBR filesystem fingerprinting**, protective-MBR/GPT detection |
+| [`mbr-partition-forensic`](https://github.com/SecurityRonin/mbr-partition-forensic) | Master Boot Record — boot-code fingerprinting, gap/slack carving, per-partition VBR filesystem fingerprinting, protective-MBR/GPT detection |
 | [`gpt-partition-forensic`](https://github.com/SecurityRonin/gpt-partition-forensic) | GUID Partition Table — CRC32 integrity, primary/backup reconciliation |
 | [`apm-partition-forensic`](https://github.com/SecurityRonin/apm-partition-forensic) | Apple Partition Map — classic Mac and hybrid optical media |
 
-## Design
+## Architecture
+
+`disk-forensic` is being restructured as the fleet's **universal forensic VFS** — a single open-any-image entry point shared by `issen`, `4n6mount`, and `disk4n6`, rather than three parallel detection stacks. See the [full design doc](docs/design/2026-07-06-universal-forensic-vfs.md) for the detailed specification.
+
+### The layered model
+
+Six transform kinds, each a trait, compose as a graph. Every transform consumes an `ImageSource` and yields either another `ImageSource` or a terminal `FileSystem`. The resolver applies them in the order the evidence requires — crypto may appear before or after volume detection depending on the image:
+
+```
+PathSpec (locator, self-describing, serde-safe)
+   │ resolves (graph walk)
+   ▼
+ImageSource  ── positioned read_at(&self), no write, no seek cursor ──┐
+   ├── ContainerDecoder  E01 / VMDK / VHDX / QCOW2 / DMG / AFF4      │
+   ├── VolumeSystem      MBR / GPT / APM / VSS / APFS-container       │
+   ├── CryptoLayer       BitLocker / LUKS / FileVault                  │
+   └── FileSystem        NTFS / ext4 / HFS+ / APFS / ISO / FAT → FsNode
+```
+
+`ImageSource` has `read_at(&self)` — no seek cursor, no write method anywhere in the trait. That single choice delivers parallel reads across a shared stack (`&self` composes across threads; `&mut self` Seek cannot) and makes evidence read-only by construction rather than by convention.
+
+`PathSpec` is a self-describing locator that carries the full open-recipe for an artifact. It round-trips through a report or evidence row without carrying credentials (credentials are supplied at resolve time through a `CredentialSource`, so a serialized address is safe to log).
+
+### Development status
+
+| Phase | Scope | Status |
+|---|---|---|
+| — | **Today:** container decode (E01/VMDK/VHDX/VHD/QCOW2/DMG/raw/ISO), MBR/GPT/APM parsing, live triage (macOS/Linux/Windows), ISO filesystem analysis, acquisition-integrity findings | ✅ Shipped |
+| 1 | Extract `forensic-vfs-core`: `ImageSource` + adapters + `PathSpec` + `FileSystem` trait (relocate from `4n6mount`). Non-breaking re-exports during transition. | In development |
+| 2 | `forensic-vfs-engine`: `Vfs::open` + registry over existing containers and schemes; per-partition filesystem mounting. | Planned |
+| 3 | One issen provider replaces 8 per-format wrapper crates (ADR-0010). | Planned |
+| 4 | `4n6mount` migrates onto the engine, dropping its own detect/dispatch. | Planned |
+| 5 | Crypto + snapshots + nesting: `CryptoLayer` (BitLocker/LUKS/FileVault), VSS `VolumeSystem`, nested images, `TemporalCohort` snapshots. | Planned |
+| 6 | In-tree trait impls per reader crate; shims deleted. | Planned |
+
+Each phase is gated on the Case-001 Szechuan end-to-end ingest producing identical event counts and artifacts to the pre-phase baseline.
+
+### Design properties
 
 - **Secure by default** — one auto-detecting entry point: a caller cannot pick the wrong decoder or parser for a disk, and the zero-config path is the correct one.
-- **Unified across sources and platforms** — live disks and decoded images render through the same partition-layout view; live enumeration speaks IOKit / sysfs / `DeviceIoControl` behind one model.
-- **Fails loud** — a corrupt container or unknown scheme returns a typed error; it never emits silently wrong output.
+- **Read-only by construction** — the `ImageSource` trait has no write method; a write is uncompilable, not merely undocumented.
+- **Fails loud** — a corrupt container or unknown scheme returns a typed error with the offending bytes and offset; it never emits silently wrong output.
 - **`#![forbid(unsafe_code)]`** and fuzz-tested (`cargo fuzz`) against crafted/corrupted input.
-- **Validated against real images**, not just synthetic fixtures — real EnCase/qemu/hdiutil containers and a genuine NTFS volume from a public CTF disk. See [`docs/VALIDATION.md`](docs/VALIDATION.md).
+- **Validated against real images** — real EnCase/qemu/hdiutil containers and a genuine NTFS volume from a public CTF disk. See [`docs/VALIDATION.md`](docs/VALIDATION.md).
 
 ---
 
