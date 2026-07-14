@@ -38,6 +38,15 @@ vhdx = { version = "0.3.0", package = "vhdx-core" }
 # Our own pure-Rust DMG/UDIF reader (replaces third-party `udif`, which pulled
 # C-based lzfse/bzip2/lzma). Package dmg-core, imported as `dmg`.
 dmg = { version = "0.1.2", package = "dmg-core" }
+# AFF4 reader: a physical AFF4 (aff4:ImageStream / aff4:Map) is a Read+Seek disk
+# view decoded by container::open; a logical AFF4 (aff4:FileImage) is read via
+# the `logical` module. `::aff4` is the reader crate; `aff4` (imported from
+# forensicnomicon) is the magic module used for sniffing.
+aff4 = "0.2.2"
+# AccessData AD1 logical-image reader (FTK "Custom Content Image") — a file tree
+# with no raw disk underneath, surfaced through the `logical` module. Package
+# ad1-core, imported as `ad1`.
+ad1 = { version = "0.1.0", package = "ad1-core" }
 serde = { version = "1", features = ["derive"], optional = true }
 # JSON output for the `disk-forensic --json` binary (enabled by the serde feature).
 serde_json = { version = "1", optional = true }
@@ -60,6 +69,13 @@ serde = [
 [dev-dependencies]
 serde_json = "1"
 tempfile = "3"
+# AFF4 fixture builder (physical + logical synthetic containers) for the
+# container/logical opener tests. `test-helpers` exposes `aff4::testutil`; it is
+# a dev-only feature and never compiles into a normal `cargo build`.
+aff4 = { version = "0.2.2", features = ["test-helpers"] }
+# AD1 fixture builder (`testfix`) — spec-faithful logical trees for the logical
+# opener tests. Dev-only; never compiled into a normal build.
+ad1 = { version = "0.1.0", package = "ad1-core", features = ["testfix"] }
 
 [lints.rust]
 # All OS-specific FFI now lives in livedisk-core; disk-forensic is pure
