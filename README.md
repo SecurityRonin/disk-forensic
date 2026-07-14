@@ -137,6 +137,49 @@ A **Timeline** section then reconstructs the volume's authoring window from the 
 disk-forensic = "0.9"
 ```
 
+### Universal container abstraction — `container::open`
+
+One call sniffs the container magic, decodes the wrapper, and hands back a uniform `Read + Seek` view of the raw disk. The caller never names a format:
+
+```rust
+use disk_forensic::container::{self, OpenedImage};
+
+let img: OpenedImage = container::open(std::path::Path::new("evidence.E01"))?;
+// img.format : ContainerFormat   — which wrapper was detected
+// img.size   : u64               — decoded media size in bytes
+// img.reader : Box<dyn ReadSeek>  — a Read + Seek view of the raw disk
+let mut disk = img.reader;
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
+`ReadSeek` is `Read + Seek`, blanket-impl'd for every reader, so a decoded EWF/VMDK/QCOW2 reader and a plain raw `File` box into the same `Box<dyn ReadSeek>`. Need only the classification? `container::sniff(&mut reader)` (or the pure `container::detect(header, footer)`) returns the detected `ContainerFormat` without decoding.
+
+| Container | `container::open` behaviour |
+|---|---|
+| Raw / `dd` | passed through in place |
+| E01 / EWF (EnCase) | decoded |
+| VMDK (VMware) | decoded — follows snapshot/delta extent chains to the base image |
+| VHDX (Hyper-V) | decoded |
+| VHD (Virtual PC, fixed + dynamic) | decoded |
+| QCOW2 (QEMU/KVM) | decoded |
+| DMG (Apple UDIF) | decoded — pure-Rust ADC / zlib / bzip2 / LZFSE / LZMA codecs |
+| ISO 9660 (optical) | passed through to the filesystem analyser (a filesystem, not a partitioned disk) |
+| AFF4 | recognised but **not decoded** — returns `OpenError::Unsupported(ContainerFormat::Aff4)` |
+
+A corrupt or unsupported-variant container fails loud with `OpenError::Decode`; a recognised-but-unwired container returns `OpenError::Unsupported`. There is no silent wrong-output path.
+
+#### Two layers: containers, then volumes and filesystems
+
+`disk-forensic::container` opens the **container** — the wrapper down to raw disk bytes as `Read + Seek`. Mounting **volumes and filesystems** over those bytes belongs to [`forensic-vfs`](https://github.com/SecurityRonin/forensic-vfs) and its engine, which compose the full stack behind one `Arc<dyn ImageSource>` (e.g. `E01 → GPT → BitLocker → NTFS`). The pipeline:
+
+- image file
+- → `container::open` → `Read + Seek` / `ImageSource` (raw disk bytes)
+- → volume system (MBR / GPT / APM)
+- → filesystem (NTFS / ext4 / APFS / HFS+ / FAT / ISO)
+- → files
+
+`disk-forensic` itself parses the volume layer (MBR/GPT/APM) and the ISO filesystem; [`forensic-vfs`](https://github.com/SecurityRonin/forensic-vfs) defines the `ImageSource` byte-edge plus the volume/crypto/filesystem traits, and `forensic-vfs-engine` composes the concrete readers (NTFS/ext4/APFS/HFS+/FAT/…) into a `Vfs::open(path) → Evidence` walk.
+
 ```rust
 use std::fs::File;
 
