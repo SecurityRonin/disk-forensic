@@ -6,10 +6,12 @@
 //! right structural analysis without choosing a crate up front.
 //!
 //! [`container::open`] sniffs the wrapper by content and decodes E01/EWF, VMDK,
-//! VHDX, VHD, QCOW2, and DMG to a `Read + Seek` view of the raw disk; ISO 9660
-//! optical images are a filesystem rather than a partitioned disk and are routed
-//! to [`iso9660_forensic`]. Everything else is pure orchestration: scheme
-//! detection comes from the
+//! VHDX, VHD, QCOW2, DMG, and physical AFF4 (`aff4:ImageStream` / `aff4:Map`) to
+//! a `Read + Seek` view of the raw disk; ISO 9660 optical images are a filesystem
+//! rather than a partitioned disk and are routed to [`iso9660_forensic`]. Logical
+//! file containers — AD1 and AFF4-Logical (`aff4:FileImage`) — carry a file tree
+//! rather than a disk, so they live in [`logical::open`] instead. Everything else
+//! is pure orchestration: scheme detection comes from the
 //! [`forensicnomicon`](https://docs.rs/forensicnomicon) knowledge base, and every
 //! real parse is delegated to a sibling crate
 //! ([`mbr_partition_forensic`], [`gpt_partition_forensic`], [`apm_partition_forensic`]).
@@ -30,6 +32,7 @@ use std::io::{Read, Seek, SeekFrom};
 
 pub mod container;
 pub mod layout;
+pub mod logical;
 pub mod normalize;
 pub mod report;
 mod vhd;

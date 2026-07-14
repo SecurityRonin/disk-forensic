@@ -28,7 +28,9 @@ real examiner would encounter, then decoded back and checked.
 | VHD (fixed) | `df-fixed.vhd` | `qemu-img convert -O vpc -o subformat=fixed` | built-in (`src/vhd.rs`) | decodes → `Scheme::Mbr`, CHS-rounded size |
 | DMG | `df.dmg` | `hdiutil convert -format UDZO` | `dmg-core` | decodes → `Scheme::Mbr` |
 | ISO 9660 | `df.iso` | `hdiutil makehybrid -iso -joliet` | `iso9660-forensic` | volume label + clean exit |
-| AFF4 | — | n/a | none yet | recognised → `OpenError::Unsupported` (synthetic magic) |
+| AFF4 (physical) | `aff4::testutil::test_aff4` | spec-faithful builder in the `aff4` reader crate | `aff4` | decodes → disk view, virtual size + bytes exact |
+| AFF4 (logical) | `aff4::testutil::test_aff4_logical` | builder in the `aff4` reader crate | `aff4` (via `logical::open`) | `container::open` → `OpenError::LogicalContainer`; `logical::open` lists + reads |
+| AD1 | `ad1::testfix::build` | spec-faithful builder in the `ad1-core` reader crate (independent flate2 + RustCrypto ground truth) | `ad1-core` (via `logical::open`) | `container::open` → `OpenError::LogicalContainer`; `logical::open` lists + reads bytes exact |
 
 The VHD virtual size is qemu's CHS-geometry-rounded value (1 079 296 bytes, not
 1 MiB) — the test asserts the **real** value observed in the footer, a concrete

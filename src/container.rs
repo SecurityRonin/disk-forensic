@@ -53,9 +53,20 @@ pub enum OpenError {
     #[error("{0:?} decode error: {1}")]
     Decode(ContainerFormat, String),
     /// The container format is recognized but its decoder is not yet wired —
-    /// decode it to a raw image first.
+    /// decode it to a raw image first. A defensive arm for any future
+    /// recognized-but-unwired format; every format `sniff` recognizes today is
+    /// either decoded or routed.
     #[error("{0:?} container decoding is not yet supported — decode it to a raw image first")]
     Unsupported(ContainerFormat),
+    /// The format is a *logical* file container (AD1, or an AFF4-Logical
+    /// `aff4:FileImage` collection), not a raw disk image — it has no block
+    /// device / partition table underneath, so it does not fit `open`'s
+    /// `Read + Seek` disk contract. Open it with [`crate::logical::open`].
+    #[error(
+        "{0:?} is a logical file container, not a raw disk image — open it with \
+         `disk_forensic::logical::open`"
+    )]
+    LogicalContainer(ContainerFormat),
 }
 
 /// Open `path`, sniff its container format, and return a decoded `Read + Seek`
@@ -181,7 +192,40 @@ pub fn open(path: &Path) -> Result<OpenedImage, OpenError> {
                 findings: Vec::new(),
             })
         }
-        other => Err(OpenError::Unsupported(other)),
+        ContainerFormat::Aff4 => {
+            // `aff4` (imported) is forensicnomicon's magic module; the reader is
+            // the external `aff4` crate, reached via the absolute path. AFF4 has
+            // two shapes: a physical disk image (aff4:ImageStream / aff4:Map) is
+            // a Read + Seek disk view; a logical collection (aff4:FileImage) is a
+            // file tree with no disk underneath. Classify cheaply first so a
+            // logical container is routed out instead of yielding a bogus disk.
+            match ::aff4::container_kind(path)
+                .map_err(|e| OpenError::Decode(format, e.to_string()))?
+            {
+                ::aff4::ContainerKind::Disk => {
+                    let reader = ::aff4::Aff4Reader::open(path)
+                        .map_err(|e| OpenError::Decode(format, e.to_string()))?;
+                    let size = reader.virtual_disk_size();
+                    Ok(OpenedImage {
+                        format,
+                        size,
+                        reader: Box::new(reader),
+                        findings: Vec::new(),
+                    })
+                }
+                ::aff4::ContainerKind::Logical => Err(OpenError::LogicalContainer(format)),
+                ::aff4::ContainerKind::Encrypted => Err(OpenError::Decode(
+                    format,
+                    "encrypted AFF4 container (aff4:EncryptedStream) — needs a password".into(),
+                )),
+            }
+        }
+        ContainerFormat::Ad1 => {
+            // AD1 is FTK's logical "Custom Content Image" — a file tree, no raw
+            // disk. It cannot yield a Read + Seek disk view; route it to
+            // `logical::open`.
+            Err(OpenError::LogicalContainer(format))
+        }
     }
 }
 
@@ -190,6 +234,10 @@ pub fn open(path: &Path) -> Result<OpenedImage, OpenError> {
 const HEADER_SNIFF_BYTES: usize = 34816;
 /// Bytes read from the end for footer/trailer-magic detection (VHD, DMG).
 const FOOTER_SNIFF_BYTES: u64 = 512;
+/// AD1 offset-0 signature — the "ADSEGMENTEDFILE" segmented-file marker (the
+/// trailing NUL of `ADSEGMENTEDFILE\0` is not required to disambiguate). Mirrors
+/// `ad1-core`'s `AD1_SEGMENTED_MARKER`.
+const AD1_SEGMENTED_MARKER: &[u8] = b"ADSEGMENTEDFILE";
 
 /// A detected disk-image container format.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -207,8 +255,14 @@ pub enum ContainerFormat {
     Vmdk,
     /// QEMU / KVM QCOW2.
     Qcow2,
-    /// Advanced Forensic Format 4 (ZIP-based).
+    /// Advanced Forensic Format 4 (ZIP-based). Physical (`aff4:ImageStream` /
+    /// `aff4:Map`) images decode to a disk view via [`open`]; logical
+    /// (`aff4:FileImage`) collections are read via [`crate::logical::open`].
     Aff4,
+    /// AccessData AD1 (FTK "Custom Content Image") — a *logical* file container,
+    /// not a raw disk. Read via [`crate::logical::open`]; [`open`] refuses it
+    /// with [`OpenError::LogicalContainer`].
+    Ad1,
     /// Apple Disk Image (UDIF).
     Dmg,
     /// ISO 9660 optical-disc image (a filesystem, not a partitioned disk —
@@ -246,6 +300,13 @@ pub fn detect(header: &[u8], footer: &[u8]) -> ContainerFormat {
     }
     if header.starts_with(&aff4::ZIP_LOCAL_FILE_HEADER_MAGIC) {
         return ContainerFormat::Aff4;
+    }
+    // AccessData AD1 (FTK "Custom Content Image"): the segmented-file marker
+    // "ADSEGMENTEDFILE\0" sits at offset 0 (al3ks1s/AD1-tools; `ad1-core`'s
+    // AD1_SEGMENTED_MARKER). forensicnomicon carries no AD1 magic module yet, so
+    // the signature is spelled out here.
+    if header.starts_with(AD1_SEGMENTED_MARKER) {
+        return ContainerFormat::Ad1;
     }
     // ── Optical (ISO 9660): "CD001" at the PVD, offset 32769 (ECMA-119) ───────
     const ISO_PVD_OFFSET: usize = 32769;

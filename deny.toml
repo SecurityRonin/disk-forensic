@@ -6,7 +6,9 @@ exclude = ["disk-forensic-fuzz"]
 # Copyleft licenses (GPL/LGPL/AGPL) are excluded simply by omission.
 [licenses]
 # Zlib: permissive (foldhash, pulled transitively via ewf → hashbrown).
-allow = ["MIT", "Apache-2.0", "Apache-2.0 WITH LLVM-exception", "ISC", "Unicode-DFS-2016", "Unicode-3.0", "Zlib"]
+# BSD-3-Clause: permissive (OSI/FSF), pulled via aff4 → snap (Snappy) and
+# aff4 → pbkdf2 → hmac → digest → subtle (encrypted-AFF4 decrypt).
+allow = ["MIT", "Apache-2.0", "Apache-2.0 WITH LLVM-exception", "ISC", "Unicode-DFS-2016", "Unicode-3.0", "Zlib", "BSD-3-Clause"]
 confidence-threshold = 0.8
 
 [bans]

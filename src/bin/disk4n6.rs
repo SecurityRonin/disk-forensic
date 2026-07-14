@@ -182,6 +182,13 @@ fn analyse_image(path: &str, json: bool) -> ExitCode {
             );
             return ExitCode::from(2);
         }
+        Err(container::OpenError::LogicalContainer(fmt)) => {
+            eprintln!(
+                "disk4n6: {path}: {fmt:?} is a logical file container (a file tree), not a raw \
+                 disk image — it has no partitions to analyse"
+            );
+            return ExitCode::from(2);
+        }
         Err(e) => {
             eprintln!("disk4n6: cannot open {path}: {e}");
             return ExitCode::from(2);

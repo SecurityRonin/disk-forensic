@@ -164,9 +164,22 @@ let mut disk = img.reader;
 | QCOW2 (QEMU/KVM) | decoded |
 | DMG (Apple UDIF) | decoded — pure-Rust ADC / zlib / bzip2 / LZFSE / LZMA codecs |
 | ISO 9660 (optical) | passed through to the filesystem analyser (a filesystem, not a partitioned disk) |
-| AFF4 | recognised but **not decoded** — returns `OpenError::Unsupported(ContainerFormat::Aff4)` |
+| AFF4 (physical) | decoded — an `aff4:ImageStream` / `aff4:Map` image opens as a `Read + Seek` disk view |
+| AFF4 (logical) / AD1 | **logical file containers, not disks** — `container::open` refuses them with `OpenError::LogicalContainer`; open them with `disk_forensic::logical::open` |
 
-A corrupt or unsupported-variant container fails loud with `OpenError::Decode`; a recognised-but-unwired container returns `OpenError::Unsupported`. There is no silent wrong-output path.
+A corrupt or unsupported-variant container fails loud with `OpenError::Decode`; a logical file container (AD1, or an AFF4-Logical `aff4:FileImage` collection) returns `OpenError::LogicalContainer` naming `logical::open`. There is no silent wrong-output path.
+
+##### Logical containers
+
+Some evidence is a *file tree*, not a raw disk: AccessData **AD1** (FTK "Custom Content Image") and **AFF4-Logical** (`aff4:FileImage`). These have no partition table, so they live in `disk_forensic::logical` rather than `container::open`:
+
+```rust
+let mut img = disk_forensic::logical::open(std::path::Path::new("evidence.ad1"))?;
+for e in img.entries() {                     // LogicalEntry: path, is_dir, size
+    if !e.is_dir { /* img.read_file(index) → the file's bytes */ }
+}
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
 
 #### Two layers: containers, then volumes and filesystems
 

@@ -46,9 +46,10 @@ That E01 was decoded, the protective MBR cross-checked, and the GPT parsed — o
 | **QCOW2** (QEMU/KVM) | decoded |
 | **DMG** (Apple UDIF) | decoded |
 | **ISO 9660** (optical) | routed to filesystem analysis |
-| AFF4 | recognised; decoder not yet wired |
+| **AFF4** (physical) | decoded — `aff4:ImageStream` / `aff4:Map` opens as a disk view |
+| **AFF4** (logical) / **AD1** | logical file containers — read via `disk_forensic::logical::open` (not a raw disk) |
 
-A corrupt or unsupported-variant container fails loud with a clear decode error rather than silently producing wrong output.
+A corrupt or unsupported-variant container fails loud with a clear decode error rather than silently producing wrong output. A logical file container (AD1, or an AFF4-Logical `aff4:FileImage` collection) returns `OpenError::LogicalContainer`, naming `logical::open`.
 
 ## Design properties
 
