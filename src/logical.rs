@@ -51,6 +51,9 @@ pub enum LogicalError {
     /// An AFF4-Logical read failed.
     #[error("AFF4 error: {0}")]
     Aff4(#[from] aff4::Aff4Error),
+    /// A DAR read failed.
+    #[error("DAR error: {0}")]
+    Dar(#[from] dar::DarError),
     /// [`LogicalImage::read_file`] was given an out-of-range entry index.
     #[error("no entry at index {0}")]
     NoSuchEntry(usize),
@@ -65,6 +68,8 @@ enum Backend {
     Ad1(ad1::Ad1Reader),
     /// AFF4-Logical (`aff4::LogicalContainer`).
     Aff4(aff4::LogicalContainer),
+    /// DAR (`dar-core`).
+    Dar(dar::DarReader<std::fs::File>),
 }
 
 /// An opened logical file container: its entry list plus the backend reader.
@@ -141,6 +146,7 @@ impl LogicalImage {
                     .clone();
                 Ok(container.read_file(&entry)?)
             }
+            Backend::Dar(_reader) => unimplemented!(),
         }
     }
 }
@@ -162,6 +168,7 @@ pub fn open(path: &Path) -> Result<LogicalImage, LogicalError> {
     match format {
         ContainerFormat::Ad1 => open_ad1(path),
         ContainerFormat::Aff4 => open_aff4_logical(path),
+        ContainerFormat::Dar => open_dar(path),
         other => Err(LogicalError::NotLogical(
             other,
             "not a logical file container — try disk_forensic::container::open".into(),
@@ -225,4 +232,9 @@ fn open_aff4_logical(path: &Path) -> Result<LogicalImage, LogicalError> {
         entries,
         backend: Backend::Aff4(container),
     })
+}
+
+/// Open a DAR archive and project its entries.
+fn open_dar(_path: &Path) -> Result<LogicalImage, LogicalError> {
+    unimplemented!()
 }

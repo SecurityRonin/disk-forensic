@@ -226,6 +226,11 @@ pub fn open(path: &Path) -> Result<OpenedImage, OpenError> {
             // `logical::open`.
             Err(OpenError::LogicalContainer(format))
         }
+        ContainerFormat::Dar => {
+            // DAR (Disk ARchiver) is a logical backup archive — a file tree, no
+            // raw disk. Route it to `logical::open` like AD1.
+            Err(OpenError::LogicalContainer(format))
+        }
     }
 }
 
@@ -238,6 +243,9 @@ const FOOTER_SNIFF_BYTES: u64 = 512;
 /// trailing NUL of `ADSEGMENTEDFILE\0` is not required to disambiguate). Mirrors
 /// `ad1-core`'s `AD1_SEGMENTED_MARKER`.
 const AD1_SEGMENTED_MARKER: &[u8] = b"ADSEGMENTEDFILE";
+/// DAR offset-0 magic — `SAUV_MAGIC_NUMBER` (123) as a big-endian u32. Mirrors
+/// `dar-core`'s `DAR_MAGIC`.
+const DAR_MAGIC: [u8; 4] = [0x00, 0x00, 0x00, 0x7b];
 
 /// A detected disk-image container format.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -263,6 +271,9 @@ pub enum ContainerFormat {
     /// not a raw disk. Read via [`crate::logical::open`]; [`open`] refuses it
     /// with [`OpenError::LogicalContainer`].
     Ad1,
+    /// DAR (Denis Corbin Disk ARchiver) backup archive — a *logical* file
+    /// container, not a raw disk. Read via [`crate::logical::open`].
+    Dar,
     /// Apple Disk Image (UDIF).
     Dmg,
     /// ISO 9660 optical-disc image (a filesystem, not a partitioned disk —
@@ -307,6 +318,10 @@ pub fn detect(header: &[u8], footer: &[u8]) -> ContainerFormat {
     // the signature is spelled out here.
     if header.starts_with(AD1_SEGMENTED_MARKER) {
         return ContainerFormat::Ad1;
+    }
+    // DAR (Disk ARchiver): the SAUV magic (123, big-endian u32) at offset 0.
+    if header.starts_with(&DAR_MAGIC) {
+        return ContainerFormat::Dar;
     }
     // ── Optical (ISO 9660): "CD001" at the PVD, offset 32769 (ECMA-119) ───────
     const ISO_PVD_OFFSET: usize = 32769;
