@@ -13,11 +13,13 @@ use std::path::Path;
 use forensicnomicon::report::Finding;
 use forensicnomicon::{aff4, dmg, ewf, qcow2, vhd, vhdx, vmdk};
 
-/// Anything that can be both read and seeked — the disk view `analyse_disk`
-/// consumes. A blanket impl covers every `Read + Seek`, so a decoder's reader or
-/// a plain `File` both box into `Box<dyn ReadSeek>`.
-pub trait ReadSeek: Read + Seek {}
-impl<T: Read + Seek> ReadSeek for T {}
+/// Anything that can be both read and seeked, and moved across threads — the
+/// disk view `analyse_disk` consumes. A blanket impl covers every
+/// `Read + Seek + Send`, so a decoder's reader or a plain `File` both box into
+/// `Box<dyn ReadSeek + Send>`. `Send` lets a consumer hand the decoded disk (or
+/// a partition slice of it) to a background mount thread.
+pub trait ReadSeek: Read + Seek + Send {}
+impl<T: Read + Seek + Send> ReadSeek for T {}
 
 /// A decoded, analysable disk image.
 pub struct OpenedImage {
