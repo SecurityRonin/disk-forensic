@@ -146,7 +146,16 @@ impl LogicalImage {
                     .clone();
                 Ok(container.read_file(&entry)?)
             }
-            Backend::Dar(_reader) => unimplemented!(),
+            Backend::Dar(reader) => {
+                // entries() returns an owned Vec, so the borrow ends before the
+                // &mut extract; index by position to recover the byte-exact path.
+                let entry = reader
+                    .entries()
+                    .into_iter()
+                    .nth(index)
+                    .ok_or(LogicalError::NoSuchEntry(index))?;
+                Ok(reader.extract(&entry.path)?)
+            }
         }
     }
 }
@@ -235,6 +244,25 @@ fn open_aff4_logical(path: &Path) -> Result<LogicalImage, LogicalError> {
 }
 
 /// Open a DAR archive and project its entries.
-fn open_dar(_path: &Path) -> Result<LogicalImage, LogicalError> {
-    unimplemented!()
+///
+/// DAR records paths as raw bytes (it archives filesystems that do not guarantee
+/// UTF-8); the listed [`LogicalEntry::path`] is the lossy-UTF-8 display form,
+/// while [`LogicalImage::read_file`] indexes back into the reader's own entries
+/// for the byte-exact extraction key.
+fn open_dar(path: &Path) -> Result<LogicalImage, LogicalError> {
+    let reader = dar::DarReader::open(File::open(path)?)?;
+    let entries = reader
+        .entries()
+        .iter()
+        .map(|e| LogicalEntry {
+            path: String::from_utf8_lossy(&e.path).into_owned(),
+            is_dir: matches!(e.kind, dar::EntryKind::Directory),
+            size: e.size,
+        })
+        .collect();
+    Ok(LogicalImage {
+        format: ContainerFormat::Dar,
+        entries,
+        backend: Backend::Dar(reader),
+    })
 }
