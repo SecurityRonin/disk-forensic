@@ -47,6 +47,9 @@ aff4 = "0.2.2"
 # with no raw disk underneath, surfaced through the `logical` module. Package
 # ad1-core, imported as `ad1`.
 ad1 = { version = "0.1.0", package = "ad1-core" }
+# DAR (Denis Corbin Disk ARchiver) logical backup archive — a file tree, read via
+# the `logical` module. dar-core, imported as `dar`.
+dar = { version = "0.7.0", package = "dar-core" }
 serde = { version = "1", features = ["derive"], optional = true }
 # JSON output for the `disk-forensic --json` binary (enabled by the serde feature).
 serde_json = { version = "1", optional = true }

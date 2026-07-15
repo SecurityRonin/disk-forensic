@@ -51,6 +51,9 @@ pub enum LogicalError {
     /// An AFF4-Logical read failed.
     #[error("AFF4 error: {0}")]
     Aff4(#[from] aff4::Aff4Error),
+    /// A DAR read failed.
+    #[error("DAR error: {0}")]
+    Dar(#[from] dar::DarError),
     /// [`LogicalImage::read_file`] was given an out-of-range entry index.
     #[error("no entry at index {0}")]
     NoSuchEntry(usize),
@@ -65,6 +68,8 @@ enum Backend {
     Ad1(ad1::Ad1Reader),
     /// AFF4-Logical (`aff4::LogicalContainer`).
     Aff4(aff4::LogicalContainer),
+    /// DAR (`dar-core`).
+    Dar(dar::DarReader<std::fs::File>),
 }
 
 /// An opened logical file container: its entry list plus the backend reader.
@@ -141,6 +146,16 @@ impl LogicalImage {
                     .clone();
                 Ok(container.read_file(&entry)?)
             }
+            Backend::Dar(reader) => {
+                // entries() returns an owned Vec, so the borrow ends before the
+                // &mut extract; index by position to recover the byte-exact path.
+                let entry = reader
+                    .entries()
+                    .into_iter()
+                    .nth(index)
+                    .ok_or(LogicalError::NoSuchEntry(index))?;
+                Ok(reader.extract(&entry.path)?)
+            }
         }
     }
 }
@@ -162,6 +177,7 @@ pub fn open(path: &Path) -> Result<LogicalImage, LogicalError> {
     match format {
         ContainerFormat::Ad1 => open_ad1(path),
         ContainerFormat::Aff4 => open_aff4_logical(path),
+        ContainerFormat::Dar => open_dar(path),
         other => Err(LogicalError::NotLogical(
             other,
             "not a logical file container — try disk_forensic::container::open".into(),
@@ -224,5 +240,29 @@ fn open_aff4_logical(path: &Path) -> Result<LogicalImage, LogicalError> {
         format: ContainerFormat::Aff4,
         entries,
         backend: Backend::Aff4(container),
+    })
+}
+
+/// Open a DAR archive and project its entries.
+///
+/// DAR records paths as raw bytes (it archives filesystems that do not guarantee
+/// UTF-8); the listed [`LogicalEntry::path`] is the lossy-UTF-8 display form,
+/// while [`LogicalImage::read_file`] indexes back into the reader's own entries
+/// for the byte-exact extraction key.
+fn open_dar(path: &Path) -> Result<LogicalImage, LogicalError> {
+    let reader = dar::DarReader::open(File::open(path)?)?;
+    let entries = reader
+        .entries()
+        .iter()
+        .map(|e| LogicalEntry {
+            path: String::from_utf8_lossy(&e.path).into_owned(),
+            is_dir: matches!(e.kind, dar::EntryKind::Directory),
+            size: e.size,
+        })
+        .collect();
+    Ok(LogicalImage {
+        format: ContainerFormat::Dar,
+        entries,
+        backend: Backend::Dar(reader),
     })
 }
