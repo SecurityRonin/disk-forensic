@@ -1,5 +1,11 @@
 # Validation
 
+Every container decoder is checked against a real image produced by the tool an
+examiner would actually encounter (EnCase, `qemu-img`, `hdiutil`), and the NTFS
+fingerprinting is proven end-to-end against a genuine NTFS boot region from a
+public CTF disk. Run `cargo test --all-features`; the fixtures and assertions are
+linked below.
+
 `disk-forensic` is validated against **real images produced by real tools**, not
 only synthetic fixtures — the doer/checker discipline: code you validated only
 with fixtures you hand-built inherits your own blind spots. Where a third-party
@@ -64,9 +70,9 @@ canonical `Category::from_code`, so disk4n6 renders one uniform view.
 | Layer | Findings | Provenance | Timeline | Finding evidence offset |
 |---|---|---|---|---|
 | MBR | ✅ | ✅ | — (no datable events) | ✅ (`offset`) |
-| GPT | ✅ | ✅ | — (no datable events) | ✗ — analyzer exposes no uniform offset |
-| APM | ✅ | ✅ | — (no datable events) | ✗ — analyzer exposes no uniform offset |
-| ISO 9660 | ✅ | ✅ (full volume + Rock Ridge authoring intel) | ✅ (PVD create/modify + authoring window) | ✗ — offsets are per-`AnomalyKind` |
+| GPT | ✅ | ✅ | — (no datable events) | ❌ — analyzer exposes no uniform offset |
+| APM | ✅ | ✅ | — (no datable events) | ❌ — analyzer exposes no uniform offset |
+| ISO 9660 | ✅ | ✅ (full volume + Rock Ridge authoring intel) | ✅ (PVD create/modify + authoring window) | ❌ — offsets are per-`AnomalyKind` |
 
 `tests/iso_normalize_tests.rs` checks the ISO provenance completeness and the
 reconstructed timeline against the real `df.iso` volume (system/mastering id,

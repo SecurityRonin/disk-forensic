@@ -1,7 +1,11 @@
 # Publication & Talk Venues — the forensic-VFS paper
 
-Where to publish the universal-reader / forensic-VFS work (the SoK-style
-systematization behind this umbrella) and where to give practitioner talks.
+**Recommendation:** submit the universal-reader / forensic-VFS work to **DFRWS as
+a full research paper with SoK framing** (EU 2027 in Edinburgh once its CFP opens,
+or the next USA/APAC deadline), and give a **FOSDEM Open Source Digital Forensics
+devroom** talk for community reach. Avoid vendor summits (Magnet), where issen is
+a competitor. The rest of this page ranks the venues and records the DFRWS format
+and deadlines.
 
 ## The paper's angle (SoK framing)
 
@@ -25,9 +29,9 @@ evidence: a Systematization-of-Knowledge contribution.
 
 ## DFRWS specifics
 
-- **No dedicated "SoK" *track*.** DFRWS's five standing categories are research
+- **No dedicated “SoK” *track*.** DFRWS's five standing categories are research
   papers · presentations/demos · posters · workshops · panels. The explicit
-  "Systematization of Knowledge" solicitation was **DFRWS USA 2026-specific** (26th
+  “Systematization of Knowledge” solicitation was **DFRWS USA 2026-specific** (26th
   anniversary). Elsewhere, submit the systematization as a **Full Research Paper** —
   SoK is a framing, not a checkbox.
 - **Full paper format:** ≤10 single-spaced two-column pages (10pt, 1in margins) +
