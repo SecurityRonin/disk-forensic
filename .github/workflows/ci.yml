@@ -148,3 +148,28 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@9bdad043e88c75890e36ad3bbc8d27f0090dd609 # v2.7.8
       - run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features
+
+  umbrella-map:
+    name: Umbrella map integrity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      # (1) the architecture diagram must be valid SVG — a corrupt diagram whose path
+      # resolves would still pass mkdocs --strict, so validate it parses.
+      - name: Architecture SVG is well-formed
+        run: python3 -c "import xml.dom.minidom; xml.dom.minidom.parse('docs/assets/umbrella-architecture.svg'); print('svg ok')"
+      # (2) every umbrella member listed in the manifest MUST be registered in the
+      # inventory — turns "please keep the map current" into a hard gate. (Manifest
+      # completeness vs the whole fleet is enforced locally by scripts/umbrella-sweep.sh,
+      # which needs the sibling repos and so runs pre-publish, not in single-repo CI.)
+      - name: Every manifest member is registered in the inventory
+        run: |
+          fail=0
+          while IFS= read -r line; do
+            repo="${line%%#*}"; repo="$(echo "$repo" | tr -d '[:space:]')"
+            [ -z "$repo" ] && continue
+            grep -q "$repo" docs/validation-inventory.md \
+              || { echo "::error::umbrella member '$repo' is not registered in docs/validation-inventory.md"; fail=1; }
+          done < docs/umbrella-members.txt
+          [ "$fail" -eq 0 ] && echo "All manifest members registered in the inventory."
+          exit $fail

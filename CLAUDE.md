@@ -43,6 +43,18 @@ must pass — verified **CI-green on the pushed commit**, never a local gate alo
 
 ## Pre-publish action for disk-forensic itself
 
-Before publishing `disk-forensic`: re-run the wiring audit, update the inventory +
-regenerate/render-verify the diagram, and `mkdocs build --strict` — a stale umbrella
-map is a publish blocker (see `docs/validation-inventory.md` → Maintenance).
+Enforcement is two-layer, not a documented hope:
+
+1. **CI (per-push, in-repo):** the `umbrella-map` job validates the architecture SVG
+   parses and asserts every member in `docs/umbrella-members.txt` is registered in
+   `docs/validation-inventory.md`. `mkdocs build --strict` (docs.yml) catches dangling
+   links. A member listed but not registered → red CI.
+2. **Local (pre-publish, needs the fleet):** run **`scripts/umbrella-sweep.sh`** — it
+   DISCOVERS every fleet repo carrying the `vfs = ["dep:forensic-vfs"]` adapter feature
+   (producers, not consumers) and BLOCKS (exit 1) on any discovered reader missing from
+   the manifest/inventory. This catches readers you forgot to list at all — the gap a
+   manual manifest can't. Run it before every `disk-forensic` publish; add newly-found
+   members to the manifest + inventory + diagram, then re-run to green.
+
+Then regenerate/render-verify the diagram and confirm `mkdocs build --strict` — a stale
+umbrella map is a publish blocker (see `docs/validation-inventory.md` → Maintenance).

@@ -1,0 +1,44 @@
+# Canonical list of forensic-vfs umbrella member repos (one per line, # comments ok).
+# The docs-integrity CI job asserts EVERY name here appears in docs/validation-inventory.md.
+# Add a repo here the moment it joins the umbrella — CI then fails until it's registered
+# in the inventory + reflected in the architecture diagram. This makes "keep the umbrella
+# map current" a hard gate, not a documented hope.
+
+# --- CONTAINER (ImageSource) ---
+ewf-forensic
+qcow2-forensic
+vmdk-forensic
+vhdx-forensic
+vhd-forensic
+dmg-forensic
+aff4-forensic
+
+# --- PARTITION (VolumeSystem) ---
+gpt-partition-forensic
+mbr-partition-forensic
+apm-partition-forensic
+
+# --- CRYPTO / FDE (CryptoLayer) ---
+bitlocker-forensic
+luks-forensic
+filevault-forensic
+veracrypt-forensic
+
+# --- FILESYSTEM (FileSystem) ---
+ntfs-forensic
+ext4fs-forensic
+apfs-forensic
+hfsplus-forensic
+fat-forensic
+iso9660-forensic
+udf-forensic
+xfs-forensic
+btrfs-forensic
+zfs-forensic
+ufs-forensic
+refs-forensic
+
+# --- ARCHIVE / LOGICAL (FileSystem) ---
+zip-forensic
+ad1-forensic
+dar-forensic

@@ -115,6 +115,8 @@ provenance verified · ⏳ = pending the umbrella provenance sweep.
 | [aff4-forensic](https://github.com/SecurityRonin/aff4-forensic) | ⏳ | spec-faithful builder | [validation.md](https://github.com/SecurityRonin/aff4-forensic/blob/main/docs/validation.md) | — | ⏳ sweep |
 | [dmg-forensic](https://github.com/SecurityRonin/dmg-forensic) | ⏳ | hdiutil DMG (T2) | [validation.md](https://github.com/SecurityRonin/dmg-forensic/blob/main/docs/validation.md) | — | ⏳ sweep |
 | [ad1-forensic](https://github.com/SecurityRonin/ad1-forensic) | ⏳ | spec-faithful builder | [validation.md](https://github.com/SecurityRonin/ad1-forensic/blob/main/docs/validation.md) | [tests/data](https://github.com/SecurityRonin/ad1-forensic/blob/main/tests/data/README.md) | ⏳ sweep |
+| [zip-forensic](https://github.com/SecurityRonin/zip-forensic) | ⏳ | archive/logical (FileSystem) | [validation.md](https://github.com/SecurityRonin/zip-forensic/blob/main/docs/validation.md) | — | ⏳ sweep |
+| [dar-forensic](https://github.com/SecurityRonin/dar-forensic) | ⏳ | Disk ARchiver, archive/logical (FileSystem) | [validation.md](https://github.com/SecurityRonin/dar-forensic/blob/main/docs/validation.md) | — | ⏳ sweep |
 
 ## Orchestrator
 
