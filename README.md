@@ -8,7 +8,11 @@
 
 **`disk4n6` is the fleet's universal forensic disk layer: point it at any container — E01, VMDK, VHDX, VHD, QCOW2, DMG, raw `dd`, or ISO — and it decodes the wrapper, identifies the partitioning scheme (MBR / GPT / APM), and runs the right forensic parser. Run it bare and it maps every physical disk and partition on the live system — macOS, Linux, and Windows in one unified output — with acquisition-integrity findings you need before you image.**
 
-The library is also the foundation for the fleet's [universal forensic VFS](#architecture): a layered trait model that will let `issen`, `4n6mount`, and `disk4n6` share one open-any-image entry point rather than three parallel detection stacks.
+The library is also the foundation for the fleet's [universal forensic VFS](#architecture): a layered trait model that lets `issen`, [`4n6mount`](https://github.com/SecurityRonin/4n6mount), and `disk4n6` share one open-any-image entry point rather than three parallel detection stacks.
+
+## [`4n6mount`](https://github.com/SecurityRonin/4n6mount) — mount any image as a filesystem (the VFS payoff)
+
+The killer application of this architecture: **[`4n6mount`](https://github.com/SecurityRonin/4n6mount) FUSE-mounts any image `disk-forensic` can open** — E01 · VMDK · VHDX · QCOW2 · DMG, through MBR / GPT / APM partitions, past BitLocker / LUKS / FileVault encryption, into NTFS / ext4 / APFS / XFS / … — so evidence becomes a **normal read-only directory** you can `ls`, `grep`, `cat`, and point *any* tool at. One `mount`, every format, every OS. The four VFS contracts exist so that this works, and [`4n6mount`](https://github.com/SecurityRonin/4n6mount) is where the whole stack pays off for the analyst.
 
 ## See it work in 30 seconds
 
