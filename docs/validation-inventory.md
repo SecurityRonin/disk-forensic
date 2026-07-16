@@ -8,11 +8,13 @@ does not duplicate those; it is the map.
 
 ## Architecture
 
-Raw evidence descends through four decode layers — container, partition scheme,
-optional full-disk encryption, and filesystem — into one unified read-only
-`FileSystem` view (`forensic-vfs`), which the `disk-forensic` orchestrator and the
-`4n6mount` FUSE bridge consume. Every reader in every layer ships a `-core` reader
-plus a `-forensic` graded auditor; the tables below index each one's validation.
+Evidence enters by one of **two parallel paths** that converge at the engine:
+a **physical disk stack** (container → partition → optional full-disk encryption →
+filesystem) and a **logical-archive path** (`.zip`/`.iso`/`.ad1`/`.dar`/`.tar`/`.7z`
+opened directly as a file tree, bypassing partition + crypto). Both resolve to the
+same four forensic-vfs contracts, which the `issen`, `disk-forensic`, and `4n6mount`
+consumers navigate. Every reader ships a `-core` reader plus a `-forensic` graded
+auditor; the tables below index each one's validation.
 
 ![disk-forensic umbrella architecture — container to partition to crypto to filesystem to forensic-vfs to disk-forensic/4n6mount](assets/umbrella-architecture.svg)
 
