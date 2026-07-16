@@ -2,7 +2,7 @@
 
 **`disk4n6` is the fleet's universal forensic disk layer.** Point it at any container — E01, VMDK, VHDX, VHD, QCOW2, DMG, raw `dd`, or ISO — and it decodes the wrapper, identifies the partitioning scheme (MBR / GPT / APM), and runs the right forensic parser. Run it bare and it maps every physical disk and partition on the live system — macOS, Linux, and Windows in one unified output — with acquisition-integrity findings you need before you image.
 
-The library is also the foundation for the fleet's [universal forensic VFS](architecture.md): a layered trait model that will let `issen`, `4n6mount`, and `disk4n6` share one open-any-image entry point rather than three parallel detection stacks.
+The library is also one of three front-ends over the fleet's [universal forensic VFS](architecture.md): a layered trait model that lets `issen`, `4n6mount`, and `disk4n6` share one open-any-image entry point instead of three parallel detection stacks.
 
 ## See it work in 30 seconds
 
@@ -59,6 +59,6 @@ A corrupt or unsupported-variant container fails loud with a clear decode error 
 - **`#![forbid(unsafe_code)]`** and fuzz-tested (`cargo fuzz`) against crafted/corrupted input.
 - **Validated against real images** — real EnCase/qemu/hdiutil containers and a genuine NTFS volume from a public CTF disk. See [Validation](VALIDATION.md).
 
-## Architecture direction
+## Architecture
 
-`disk-forensic` is being restructured around a layered `ImageSource` trait that composes container decoders, volume systems, crypto layers, and filesystems as a graph — rather than a fixed decode pipeline. The design is specified and the first extraction phase (`forensic-vfs-core`) is in development. See [Architecture](architecture.md) for the layered model, crate structure, and phase-by-phase development status.
+`disk-forensic` sits over a layered `ImageSource` trait that composes container decoders, volume systems, crypto layers, and filesystems as a graph, rather than a fixed decode pipeline. The contract leaf [`forensic-vfs`](https://crates.io/crates/forensic-vfs) is published (0.3): the four trait contracts plus the generic `Registry::resolve` resolver. See [Architecture](architecture.md) for the four-component crate breakdown, the layered model, and phase-by-phase status.

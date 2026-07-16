@@ -8,11 +8,11 @@
 
 **`disk4n6` is the fleet's universal forensic disk layer: point it at any container — E01, VMDK, VHDX, VHD, QCOW2, DMG, raw `dd`, or ISO — and it decodes the wrapper, identifies the partitioning scheme (MBR / GPT / APM), and runs the right forensic parser. Run it bare and it maps every physical disk and partition on the live system — macOS, Linux, and Windows in one unified output — with acquisition-integrity findings you need before you image.**
 
-The library is also the foundation for the fleet's [universal forensic VFS](#architecture): a layered trait model that lets `issen`, [`4n6mount`](https://github.com/SecurityRonin/4n6mount), and `disk4n6` share one open-any-image entry point rather than three parallel detection stacks.
+The library is also the foundation for the fleet's [universal forensic VFS](#architecture): a layered trait model that lets `issen`, [`4n6mount`](https://github.com/SecurityRonin/4n6mount), and `disk4n6` share one open-any-image entry point instead of three parallel detection stacks.
 
-## [`4n6mount`](https://github.com/SecurityRonin/4n6mount) — mount any image as a filesystem (the VFS payoff)
+## [`4n6mount`](https://github.com/SecurityRonin/4n6mount) — mount any image as a filesystem
 
-The killer application of this architecture: **[`4n6mount`](https://github.com/SecurityRonin/4n6mount) FUSE-mounts any image `disk-forensic` can open** — E01 · VMDK · VHDX · QCOW2 · DMG, through MBR / GPT / APM partitions, past BitLocker / LUKS / FileVault encryption, into NTFS / ext4 / APFS / XFS / … — so evidence becomes a **normal read-only directory** you can `ls`, `grep`, `cat`, and point *any* tool at. One `mount`, every format, every OS. The four VFS contracts exist so that this works, and [`4n6mount`](https://github.com/SecurityRonin/4n6mount) is where the whole stack pays off for the analyst.
+[`4n6mount`](https://github.com/SecurityRonin/4n6mount) FUSE-mounts any image `disk-forensic` can open, so evidence becomes a normal read-only directory. It walks E01 · VMDK · VHDX · QCOW2 · DMG, through MBR / GPT / APM partitions, past BitLocker / LUKS / FileVault encryption, into NTFS / ext4 / APFS / XFS / …, then exposes the resolved filesystem as a directory you can `ls`, `grep`, and `cat` — and point any tool at. One `mount` covers every format on every OS. The four VFS contracts exist so one engine drives this for all three front-ends.
 
 ## See it work in 30 seconds
 
@@ -175,7 +175,7 @@ A corrupt or unsupported-variant container fails loud with `OpenError::Decode`; 
 
 ##### Logical containers
 
-Some evidence is a *file tree*, not a raw disk: AccessData **AD1** (FTK "Custom Content Image") and **AFF4-Logical** (`aff4:FileImage`). These have no partition table, so they live in `disk_forensic::logical` rather than `container::open`:
+Some evidence is a *file tree*, not a raw disk: AccessData **AD1** (FTK “Custom Content Image”) and **AFF4-Logical** (`aff4:FileImage`). These have no partition table, so they live in `disk_forensic::logical` rather than `container::open`:
 
 ```rust
 let mut img = disk_forensic::logical::open(std::path::Path::new("evidence.ad1"))?;
@@ -235,40 +235,9 @@ for disk in livedisk::enumerate()? {
 
 ## Architecture
 
-`disk-forensic` is being restructured as the fleet's **universal forensic VFS** — a single open-any-image entry point shared by `issen`, `4n6mount`, and `disk4n6`, rather than three parallel detection stacks. See the [full design doc](docs/design/2026-07-06-universal-forensic-vfs.md) for the detailed specification.
+`disk-forensic` is one of three front-ends over the fleet's universal forensic VFS — a single open-any-image entry point shared by `issen`, `4n6mount`, and `disk4n6`, instead of three parallel detection stacks. The stack is three tiers: the published [`forensic-vfs`](https://crates.io/crates/forensic-vfs) contract leaf (0.3 — the four trait contracts plus the generic `Registry::resolve` resolver), the `forensic-vfs-engine` orchestration library that wires in the concrete readers, and the front-ends on top.
 
-### The layered model
-
-Six transform kinds, each a trait, compose as a graph. Every transform consumes an `ImageSource` and yields either another `ImageSource` or a terminal `FileSystem`. The resolver applies them in the order the evidence requires — crypto may appear before or after volume detection depending on the image:
-
-```
-PathSpec (locator, self-describing, serde-safe)
-   │ resolves (graph walk)
-   ▼
-ImageSource  ── positioned read_at(&self), no write, no seek cursor ──┐
-   ├── ContainerDecoder  E01 / VMDK / VHDX / QCOW2 / DMG / AFF4      │
-   ├── VolumeSystem      MBR / GPT / APM / VSS / APFS-container       │
-   ├── CryptoLayer       BitLocker / LUKS / FileVault                  │
-   └── FileSystem        NTFS / ext4 / HFS+ / APFS / ISO / FAT → FsNode
-```
-
-`ImageSource` has `read_at(&self)` — no seek cursor, no write method anywhere in the trait. That single choice delivers parallel reads across a shared stack (`&self` composes across threads; `&mut self` Seek cannot) and makes evidence read-only by construction rather than by convention.
-
-`PathSpec` is a self-describing locator that carries the full open-recipe for an artifact. It round-trips through a report or evidence row without carrying credentials (credentials are supplied at resolve time through a `CredentialSource`, so a serialized address is safe to log).
-
-### Development status
-
-| Phase | Scope | Status |
-|---|---|---|
-| — | **Today:** container decode (E01/VMDK/VHDX/VHD/QCOW2/DMG/raw/ISO), MBR/GPT/APM parsing, live triage (macOS/Linux/Windows), ISO filesystem analysis, acquisition-integrity findings | ✅ Shipped |
-| 1 | Extract `forensic-vfs-core`: `ImageSource` + adapters + `PathSpec` + `FileSystem` trait (relocate from `4n6mount`). Non-breaking re-exports during transition. | In development |
-| 2 | `forensic-vfs-engine`: `Vfs::open` + registry over existing containers and schemes; per-partition filesystem mounting. | Planned |
-| 3 | One issen provider replaces 8 per-format wrapper crates (ADR-0010). | Planned |
-| 4 | `4n6mount` migrates onto the engine, dropping its own detect/dispatch. | Planned |
-| 5 | Crypto + snapshots + nesting: `CryptoLayer` (BitLocker/LUKS/FileVault), VSS `VolumeSystem`, nested images, `TemporalCohort` snapshots. | Planned |
-| 6 | In-tree trait impls per reader crate; shims deleted. | Planned |
-
-Each phase is gated on the Case-001 Szechuan end-to-end ingest producing identical event counts and artifacts to the pre-phase baseline.
+[`docs/architecture.md`](docs/architecture.md) is the source of truth: the four-component crate breakdown, the layered `ImageSource` model, and the phase-by-phase status. The [full design doc](docs/design/2026-07-06-universal-forensic-vfs.md) carries the detailed specification.
 
 ### Design properties
 
