@@ -29,18 +29,30 @@
 
 Six *transform kinds*, each a trait in `forensic-vfs`. They are **not a fixed lane** — the resolver (§3) applies them as a graph: every transform consumes an `ImageSource` and yields another `ImageSource` (container decode, crypto decrypt, sub-range) or a terminal `FileSystem`. Order is discovered per node by probing, because crypto/volume/container nest in any order on real evidence.
 
-```
-PathSpec (locator, recursive)         forensic-vfs  [KNOWLEDGE]
-   │ resolves (graph walk, §3)
-   ▼
-ImageSource   ── the universal edge: raw addressable bytes ──────────────┐
-   ├── ContainerDecoder :  E01/VMDK/VHDX/QCOW2/DMG/AFF4/AD1  → ImageSource │  (any of these
-   ├── VolumeSystem     :  MBR/GPT/APM/VSS/APFS-container    → ImageSource │   transforms may
-   ├── CryptoLayer      :  BitLocker/LUKS/FileVault          → ImageSource │   apply, in any
-   └── FileSystem       :  NTFS/ext4/HFS+/APFS/ISO/UDF/FAT   → FsNode tree ─┘   order, per node)
-                                     │
-                                     ▼
-                        FsNode (File | Directory) + forensic metadata
+```mermaid
+flowchart TD
+    PS["PathSpec<br/>locator, recursive"]
+    IS["ImageSource<br/>the universal edge: raw addressable bytes"]
+    FN["FsNode (File or Directory)<br/>+ forensic metadata"]
+
+    PS -->|"resolves (graph walk, §3)"| IS
+
+    subgraph T ["transforms &mdash; apply in any order, per node (§3)"]
+        CD["ContainerDecoder<br/>E01 / VMDK / VHDX / QCOW2 / DMG / AFF4 / AD1"]
+        VS["VolumeSystem<br/>MBR / GPT / APM / VSS / APFS-container"]
+        CL["CryptoLayer<br/>BitLocker / LUKS / FileVault"]
+        FS["FileSystem<br/>NTFS / ext4 / HFS+ / APFS / ISO / UDF / FAT"]
+    end
+
+    IS --> CD
+    IS --> VS
+    IS --> CL
+    IS --> FS
+
+    CD -->|"yields ImageSource"| IS
+    VS -->|"yields ImageSource"| IS
+    CL -->|"yields ImageSource"| IS
+    FS -->|"yields FsNode tree"| FN
 ```
 
 Example nesting orders the graph handles that a fixed lane would not: `E01 → GPT → BitLocker → NTFS` (crypto after volume), `raw → LUKS → LVM → ext4` (crypto before volume), `E01 → APFS-container(encrypted volume) → APFS` (crypto is container/volume metadata, not a separate FDE step).
