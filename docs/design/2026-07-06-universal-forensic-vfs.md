@@ -1,7 +1,8 @@
 # Universal Forensic Virtual File System — Design
 
-- Status: **Draft for review** (design only; no implementation)
-- Date: 2026-07-06
+> **Status update.** The contract leaf shipped as the crate **`forensic-vfs`** (published 0.3) — the leaf owns the bare name, so there is no separate `-core` crate; this doc has been updated to that name. The generic recursive resolver (`Registry::resolve`) landed inside `forensic-vfs`; only the reader-wiring lives in `forensic-vfs-engine`. See [`architecture.md`](../architecture.md) for the current four-component model and phase status. The design record below captures the decisions and their rationale.
+
+- Date: 2026-07-06 (design); crate names updated to match what shipped
 - Scope: Turn `disk-forensic` into the fleet's universal forensic VFS — one entry point that opens any disk/partition/container/filesystem format and presents a single **read-only logical filesystem** with full forensic metadata. Realizes ADR-0010.
 - Related: ADR-0010 (disk-forensic as the disk-image access abstraction), ADR-0006 (zip-direct/zran backing), `4n6mount` `ForensicFs`, `state-history-forensic` `[H]` functor.
 - Review: revised after Gemini adversarial round 1 and **Codex (GPT-5) round 2** (see §13).
@@ -10,7 +11,7 @@
 
 ## Executive Summary
 
-**Decision.** Split the VFS into three crates: a low, near-leaf **trait crate** `forensic-vfs-core` (KNOWLEDGE layer) defining the whole layered contract; a **`forensic-vfs-engine`** crate holding the registry + recursive resolver and depending down on every reader; and the thin **`disk-forensic`/`disk4n6`** CLI on top. `4n6mount` (FUSE) and `issen` (correlation) consume the same engine, replacing their two parallel detect/dispatch implementations. Realizes ADR-0010.
+**Decision.** Split the VFS into three crates: a low, near-leaf **trait crate** `forensic-vfs` (KNOWLEDGE layer) defining the whole layered contract; a **`forensic-vfs-engine`** crate holding the registry + recursive resolver and depending down on every reader; and the thin **`disk-forensic`/`disk4n6`** CLI on top. `4n6mount` (FUSE) and `issen` (correlation) consume the same engine, replacing their two parallel detect/dispatch implementations. Realizes ADR-0010.
 
 **The single biggest decision** is the **byte-source trait**: a positioned-read `ImageSource: Send + Sync` with `read_at(&self, offset, buf)` and **no seek cursor and no write method at all**. This delivers three fleet requirements at once — (1) parallel reads across a shared read-only stack via `&self` (issen reads in parallel; `Seek`'s `&mut self` cursor cannot), (2) read-only-ness enforced *by construction* (no write API exists to misuse), and (3) clean `dyn` composition (`Send + Sync` are auto traits, so `dyn ImageSource + Send + Sync` is legal where `dyn Read + Seek` is not).
 
@@ -18,7 +19,7 @@
 
 **Prior art.** Borrows the recursive **path-spec** from dfVFS (`parent` chain) and Velociraptor (`DelegateAccessor`/`Path`), the **four-layer decomposition** (image→volume-system→filesystem→file) from TSK, **loader/auto-detect + `map`** from dissect, and the **VSS-volume-of-stores** model from libvshadow. It adds Rust read-only-by-construction, snapshots as first-class sub-volumes tied to `state-history-forensic`, an explicit **crypto/translation layer** (BitLocker/LUKS/FileVault), and one unified metadata + `forensicnomicon::report` findings model across every layer.
 
-**Dependency-direction resolution.** Filesystem/parser crates depend **only** on `forensic-vfs-core` (a genuine leaf — the findings/temporal bridges are behind non-default features so a reader doesn't inherit `forensicnomicon`, round-2 fix), never on container/partition crates — the fleet rule holds *for real*. The god-crate risk is removed by putting the aggregating registry in `forensic-vfs-engine` (an orchestration crate, allowed to depend down on all readers), leaving `disk-forensic` a thin CLI. The registry is a compiled-in dispatch table (not `inventory`), with **explicit per-reader features** (`default = ["all-readers"]`) so Cargo feature-unification can't silently reshape the graph.
+**Dependency-direction resolution.** Filesystem/parser crates depend **only** on `forensic-vfs` (a genuine leaf — the findings/temporal bridges are behind non-default features so a reader doesn't inherit `forensicnomicon`, round-2 fix), never on container/partition crates — the fleet rule holds *for real*. The god-crate risk is removed by putting the aggregating registry in `forensic-vfs-engine` (an orchestration crate, allowed to depend down on all readers), leaving `disk-forensic` a thin CLI. The registry is a compiled-in dispatch table (not `inventory`), with **explicit per-reader features** (`default = ["all-readers"]`) so Cargo feature-unification can't silently reshape the graph.
 
 **The resolver is a per-node transform *graph*, not a linear stack** (round-2's escalated fix): at each `DynSource` the engine probes container / volume-system / crypto / filesystem interpretations under a bounded policy, because real evidence composes out of order — whole-disk LUKS *before* partitioning, BitLocker *inside* a partition, APFS encryption *inside* the container's volume metadata. A single fixed lane would miss valid evidence or mount the wrong view.
 
@@ -26,10 +27,10 @@
 
 ## 1. The layered model
 
-Six *transform kinds*, each a trait in `forensic-vfs-core`. They are **not a fixed lane** — the resolver (§3) applies them as a graph: every transform consumes an `ImageSource` and yields another `ImageSource` (container decode, crypto decrypt, sub-range) or a terminal `FileSystem`. Order is discovered per node by probing, because crypto/volume/container nest in any order on real evidence.
+Six *transform kinds*, each a trait in `forensic-vfs`. They are **not a fixed lane** — the resolver (§3) applies them as a graph: every transform consumes an `ImageSource` and yields another `ImageSource` (container decode, crypto decrypt, sub-range) or a terminal `FileSystem`. Order is discovered per node by probing, because crypto/volume/container nest in any order on real evidence.
 
 ```
-PathSpec (locator, recursive)         forensic-vfs-core  [KNOWLEDGE]
+PathSpec (locator, recursive)         forensic-vfs  [KNOWLEDGE]
    │ resolves (graph walk, §3)
    ▼
 ImageSource   ── the universal edge: raw addressable bytes ──────────────┐
@@ -97,7 +98,7 @@ pub type DynSource = std::sync::Arc<dyn ImageSource>;
 
 `Arc<dyn ImageSource>` (not `Box`): a child layer keeps a handle to its parent *and* the same parent backs several children (every partition shares the disk source; every VSS store shares the base volume). `Arc` gives shared ownership with `Send + Sync`; `read_at(&self)` means no cursor lock on the hot path. **Object-safety holds** — no generic methods, no `Self`-by-value, receiver is `&self`; `dyn ImageSource + Send + Sync` compiles (`Send`/`Sync` are auto traits).
 
-**Bridging the existing `Read + Seek` world.** Fleet readers today expose `Read + Seek` (ewf/vmdk/…); 4n6mount's FS crates consume `Read + Seek`. Adapters in `forensic-vfs-core`:
+**Bridging the existing `Read + Seek` world.** Fleet readers today expose `Read + Seek` (ewf/vmdk/…); 4n6mount's FS crates consume `Read + Seek`. Adapters in `forensic-vfs`:
 
 ```rust
 /// Wrap a raw FILE as an ImageSource using positioned OS reads (pread /
@@ -174,7 +175,7 @@ Credentials are **not** stored in the `PathSpec` (round-1 fix, §2); they are su
 
 ### 1.3 Filesystem and logical node
 
-The filesystem navigation surface is the **existing `4n6mount::ForensicFs`**, relocated into `forensic-vfs-core` (§9), **made `Sync` with `&self` reads over interior mutability** (round-1 fix — the original `&mut self` forced one-handle-per-worker and per-thread MFT re-parsing), and given iterator-based directory/extent access (round-1 fix — eager `Vec` returns OOM on huge dirs / fragmented files).
+The filesystem navigation surface is the **existing `4n6mount::ForensicFs`**, relocated into `forensic-vfs` (§9), **made `Sync` with `&self` reads over interior mutability** (round-1 fix — the original `&mut self` forced one-handle-per-worker and per-thread MFT re-parsing), and given iterator-based directory/extent access (round-1 fix — eager `Vec` returns OOM on huge dirs / fragmented files).
 
 ```rust
 /// One mounted, read-only filesystem. Inode-addressed; `&self` reads share one
@@ -403,7 +404,7 @@ This lets crypto sit before *or* after the volume system (whole-disk LUKS vs Bit
 **Decision: a compiled-in dispatch table in `forensic-vfs-engine`, not `inventory`.** Batteries-included (CLAUDE.md): every capability compiled into one static binary; the dependency graph must be auditable (`cargo deny`, no hidden global constructors). `inventory`/`linkme` register via link-time ctors — invisible, order-nondeterministic, awkward under `--all-features`. A plain table is explicit, greppable, deterministic. **The registry lives in `forensic-vfs-engine`, not `disk-forensic`** (round-1 fix — keeps `disk-forensic` a thin CLI and lets any tool/test use the engine without a circular dep through the binary crate).
 
 ```rust
-// forensic-vfs-core — contracts a plugin implements (leaf, no reader deps):
+// forensic-vfs — contracts a plugin implements (leaf, no reader deps):
 pub trait ContainerDecoder: Send + Sync {
     fn format(&self) -> ContainerFormat;
     fn probe(&self, w: &SniffWindow) -> Confidence;
@@ -439,9 +440,9 @@ pub fn default_registry() -> Registry {
 ```
 
 **Dependency-direction resolution (the fleet-rule tension), no fig leaf.**
-- `forensic-vfs-core` is a **true leaf** (round-2 fix — it must not force `forensicnomicon` onto every reader). The core crate defines **only** the primitive traits/types (`ImageSource`, `FileSystem`, `FileId`, `FsMeta`, `PathSpec`, `VfsError`, bounds helpers) and depends on **nothing but `thiserror` + optional `serde`**. The two bridges are **non-default features**: `findings` (pulls `forensicnomicon::report`, adds the `findings()`/`Finding` surface) and `history` (pulls `state-history-forensic`, adds `EpochTag`/`TemporalCohort`). A filesystem reader implements the base traits with neither feature; the engine turns both on. No cycle is possible (arrows point only down) *and* no reader inherits the report/serde/json feature choices it didn't ask for (Cargo feature-unification containment).
+- `forensic-vfs` is a **true leaf** (round-2 fix — it must not force `forensicnomicon` onto every reader). The core crate defines **only** the primitive traits/types (`ImageSource`, `FileSystem`, `FileId`, `FsMeta`, `PathSpec`, `VfsError`, bounds helpers) and depends on **nothing but `thiserror` + optional `serde`**. The two bridges are **non-default features**: `findings` (pulls `forensicnomicon::report`, adds the `findings()`/`Finding` surface) and `history` (pulls `state-history-forensic`, adds `EpochTag`/`TemporalCohort`). A filesystem reader implements the base traits with neither feature; the engine turns both on. No cycle is possible (arrows point only down) *and* no reader inherits the report/serde/json feature choices it didn't ask for (Cargo feature-unification containment).
 - **Engine features are explicit** (round-2 fix): `forensic-vfs-engine` declares `default = ["all-readers"]` plus per-reader `reader-ntfs`, `reader-ewf`, … CI tests `--no-default-features`, each `reader-*` alone, and `all-readers`, so enabling the engine can't silently flip a reader's own defaults.
-- **Reader/analyzer crates** implement the `forensic-vfs-core` traits and depend **only down** on it. NTFS still never imports EWF — it implements `FileSystemProbe`/`FileSystem` over an `Arc<dyn ImageSource>`. The rule holds because the *wiring* lives in the engine, not the FS crate; and a FS crate can be unit-tested against `forensic-vfs-core` alone (no engine, no god-crate).
+- **Reader/analyzer crates** implement the `forensic-vfs` traits and depend **only down** on it. NTFS still never imports EWF — it implements `FileSystemProbe`/`FileSystem` over an `Arc<dyn ImageSource>`. The rule holds because the *wiring* lives in the engine, not the FS crate; and a FS crate can be unit-tested against `forensic-vfs` alone (no engine, no god-crate).
 - **`forensic-vfs-engine`** is the orchestration aggregator (issen's role, scoped to disk access): the one crate depending down on all readers. **`disk-forensic`/`disk4n6`** is a thin CLI over the engine. This removes round-1's "god-crate / circular-test-dep" objection.
 
 **In-tree vs shim.** Prefer each reader ship its own trait impl behind a `vfs` feature (so `ntfs-forensic` hands back a ready `Arc<dyn FileSystem>`); until then the shim lives in `forensic-vfs-engine`.
@@ -500,8 +501,8 @@ pub enum VfsError {
 
 - **Fail-loud bootstrap vs degrade-per-node** (§3): base/decode failure is loud; only a *genuinely unrecognized* per-node source degrades to `Unknown` (typed, bytes attached).
 - **Show the unrecognized value.** Every `Unrecognized`/`Decode` carries the actual bytes (hex) + offset + layer.
-- **Bounded readers.** All integer/offset/length reads go through `forensic-vfs-core` bounds-checked helpers (out-of-range ⇒ `OutOfRange`, never panic). Length/count fields range-checked before allocation; per-image allocation capped.
-- **No `unwrap`/`expect`/`panic!` in production**; `unsafe_code = forbid` in `forensic-vfs-core`/`forensic-vfs-engine`/`disk-forensic` (readers that mmap keep bounded `deny` + per-site allow).
+- **Bounded readers.** All integer/offset/length reads go through `forensic-vfs` bounds-checked helpers (out-of-range ⇒ `OutOfRange`, never panic). Length/count fields range-checked before allocation; per-image allocation capped.
+- **No `unwrap`/`expect`/`panic!` in production**; `unsafe_code = forbid` in `forensic-vfs`/`forensic-vfs-engine`/`disk-forensic` (readers that mmap keep bounded `deny` + per-site allow).
 
 ---
 
@@ -509,7 +510,7 @@ pub enum VfsError {
 
 ### 9.1 Crate structure
 
-- **New leaf `forensic-vfs-core`** (repo `forensic-vfs`, KNOWLEDGE). Traits + types + adapters (`ImageSource`, `SourceView`, `SourceId`, `FileSource`, `SeekPoolSource`, `SubRange`, `SourceCursor`, `VolumeSystem`, `CryptoLayer`, `FileSystem`, `FileId`, `FsMeta`, `PathSpec`, `Registry` traits, `ProbeReader`, `VfsError`, bounds-checked read helpers). Base deps: **`thiserror` + optional `serde` only**; `findings` feature → `forensicnomicon`, `history` feature → `state-history-forensic` (round-2 fix — a reader depends on none of these). **This is ADR-0010's "sector-source trait moved down."** `4n6mount::ForensicFs` relocates here (renamed `FileSystem`, `&self`/`Sync`, `FileId`, upgraded metadata); 4n6mount re-exports for a transition window.
+- **Leaf crate `forensic-vfs`** (KNOWLEDGE). Traits + types + adapters (`ImageSource`, `SourceView`, `SourceId`, `FileSource`, `SeekPoolSource`, `SubRange`, `SourceCursor`, `VolumeSystem`, `CryptoLayer`, `FileSystem`, `FileId`, `FsMeta`, `PathSpec`, `Registry` traits, `ProbeReader`, `VfsError`, bounds-checked read helpers). Base deps: **`thiserror` + optional `serde` only**; `findings` feature → `forensicnomicon`, `history` feature → `state-history-forensic` (round-2 fix — a reader depends on none of these). **This is ADR-0010's "sector-source trait moved down."** `4n6mount::ForensicFs` relocates here (renamed `FileSystem`, `&self`/`Sync`, `FileId`, upgraded metadata); 4n6mount re-exports for a transition window.
 - **New `forensic-vfs-engine`** (ORCHESTRATION). `Vfs`, `default_registry()`, the resolver + shims + concurrent cache. Depends down on every reader crate. This is the god-crate-avoidance split.
 - **`disk-forensic`/`disk4n6`** becomes a thin CLI over `forensic-vfs-engine` (report rendering: text/JSON/DFXML/HTML). Its current partition/report code moves behind `VolumeSystem`/`Finding` producers. Not a `-core`/`-forensic` split (it is a binary/aggregator, not a single-format reader).
 - **Reader crates** add trait impls behind a `vfs` feature incrementally; shim in the engine until then.
@@ -527,7 +528,7 @@ pub enum VfsError {
 
 ### 9.4 Phasing — each step gated on the Case-001 Szechuan ingest (no regression)
 
-1. **Extract `forensic-vfs-core`.** `ImageSource`+adapters+`PathSpec`+relocate `ForensicFs`→`FileSystem` (`&self`). Non-breaking re-exports. *Gate: fleet compiles; 4n6mount tests green.*
+1. **Extract `forensic-vfs`.** `ImageSource`+adapters+`PathSpec`+relocate `ForensicFs`→`FileSystem` (`&self`). Non-breaking re-exports. *Gate: fleet compiles; 4n6mount tests green.*
 2. **`forensic-vfs-engine`.** `Vfs::open` + registry over existing containers/schemes; add per-partition FS mounting (reuse 4n6mount FS impls). *Gate: engine opens all four Case-001 legs; inventory matches baseline.*
 3. **One issen provider.** Replace the 8 wrappers. *Gate: `issen ingest DC01.E01 DESKTOP.E01` identical event counts + artifacts to baseline.*
 4. **4n6mount onto the engine.** Swap `detect`/`build_filesystem`. *Gate: mount + read + deleted-list parity on E01 legs.*
@@ -556,7 +557,7 @@ Distinct capabilities here:
 - **D2** — `dyn` at composition seams, generics inside crates.
 - **D3** — `PathSpec` is a `#[non_exhaustive]` enum chain; identity via `Hash/Eq`, human form percent-encoded; **credentials out-of-band**.
 - **D4** — Compiled-in `Registry` table (not `inventory`), living in `forensic-vfs-engine`.
-- **D5** — `forensic-vfs-core` is a new KNOWLEDGE leaf; `4n6mount::ForensicFs` relocates into it as `FileSystem` (`&self`/`Sync`).
+- **D5** — `forensic-vfs` is a new KNOWLEDGE leaf; `4n6mount::ForensicFs` relocates into it as `FileSystem` (`&self`/`Sync`).
 - **D6** — Engine (`forensic-vfs-engine`) aggregates; `disk-forensic` is a thin CLI; readers depend only on the leaf. Preserves PARSER-never-imports-CONTAINER *and* avoids a god-crate.
 - **D7** — Snapshots are `VolumeSystem` volumes with `EpochTag`; FDE is a distinct `CryptoLayer`.
 - **D8** — 4n6mount's `rw/` is a CoW layer above the VFS, never write-through.
@@ -564,7 +565,7 @@ Distinct capabilities here:
 - **D10** — Ambiguous `Yes`/`Yes` sniff is a hard error by default; `RawStream` only for genuinely-unrecognized nodes.
 - **D11** — The resolver is a **per-node transform graph**, not a fixed layer lane; crypto/volume/container compose in any order (round-2).
 - **D12** — Node identity is a filesystem-specific `FileId` (NTFS ref+seq / ext inode+gen / APFS oid+xid / FAT dir-entry / ISO extent), not a bare `u64`; `PathSpec` has a lossless canonical URI *and* a lossy human `Display` (round-2).
-- **D13** — `forensic-vfs-core` is a **true leaf**; `forensicnomicon`/`state-history-forensic` are `findings`/`history` non-default features; the engine has explicit per-reader features. Bulk enumerations stream or take an explicit cap (round-2).
+- **D13** — `forensic-vfs` is a **true leaf**; `forensicnomicon`/`state-history-forensic` are `findings`/`history` non-default features; the engine has explicit per-reader features. Bulk enumerations stream or take an explicit cap (round-2).
 
 ---
 
@@ -576,7 +577,7 @@ Distinct capabilities here:
 - **`CredentialSource` UX.** Supplying BitLocker/LUKS keys at resolve time (not in the spec) means the caller must re-supply on every re-open of a serialized `PathSpec`; the provider abstraction must make that ergonomic (keyring/prompt/file) without ever persisting the key beside the spec.
 - **Crypto correctness is Tier-1-only.** BitLocker/LUKS/FileVault must validate against an independent oracle (dislocker / cryptsetup / `hdiutil`) on real encrypted volumes — never a self-encoded round-trip (LZNT1-trap rule). Use audited RustCrypto primitives; refuse (loud) rather than fabricate on an unsupported cipher.
 - **UDF / hybrid optical & multi-view volumes.** ISO+UDF hybrids and El-Torito nested FAT don't fit "one volume system → one FS"; a volume may need to yield *multiple* filesystem views of the same bytes. Deferred, flagged.
-- **`forensic-vfs-core` API churn.** As the leaf every reader depends on, expect several `#[non_exhaustive]` minor bumps before it settles; publish only when the Case-001 gate passes.
+- **`forensic-vfs` API churn.** As the leaf every reader depends on, expect several `#[non_exhaustive]` minor bumps before it settles; publish only when the Case-001 gate passes.
 - **Registry ordering vs ambiguity.** Documented detection order + the hard-error-on-tie default is safe; `auto_pick` batch mode must log every ambiguous pick.
 - **Graph-resolver explosion.** Running all four prober kinds at every node with lazy nested resolution is more work than a fixed lane; the `Budget` caps + confidence-ordered short-circuit must bound it, and mount-time vs resolve-time laziness (don't mount every partition eagerly) must be measured on a 130-partition GPT.
 - **Lock-order & Sync-FS reality.** The lock-order contract + owned streams prevent deadlock *by contract*, but each FS reader must honor it; a `loom`/stress test of concurrent walk-while-read per FS is required before claiming it holds.
@@ -620,7 +621,7 @@ Codex became available and ran as the requested reviewer, tasked to find what ro
 | 2 | `&self`+`Sync` FS lets `DirIter`/`ExtentIter` hold shard guards across `next()`; caller then locks another shard → deadlock. | **Accepted.** Lock-order contract added: streams hold **no lock across `next()`**; documented global lock order (§1.3). |
 | 3 | `Box<dyn Iterator + Send + '_>` borrowing `&self` isn't spawn-friendly and forbids non-Send guards. | **Accepted.** Replaced with **owned `DirStream`/`ExtentStream`/`NodeStream`** holding `Arc<dyn FileSystem>` + a `'static` cursor (§1.3). |
 | 4 | Cache coherence across derived sources (SubRange/decrypted/VSS) undefined; `SourceView` pins blocks invisibly. | **Accepted.** `SourceId` + parent lineage; base-source cache keys; pinned bytes budgeted separately from resident (§1.1). |
-| 5 | `forensic-vfs-core` depending on `forensicnomicon` makes it a policy crate, leaking report/serde into every reader. | **Accepted.** Core is a **true leaf**; `findings`/`history` are non-default features (§4, §9.1, D13). |
+| 5 | `forensic-vfs` depending on `forensicnomicon` makes it a policy crate, leaking report/serde into every reader. | **Accepted.** Core is a **true leaf**; `findings`/`history` are non-default features (§4, §9.1, D13). |
 | 6 | Batteries-included registry vs per-reader `vfs` features → Cargo feature-unification hazard. | **Accepted.** Explicit engine features (`default=["all-readers"]`, per-reader `reader-*`) + CI matrix (§4). |
 | 7 | `Inode{ino,seq}` only fits NTFS; ext/APFS/FAT/ISO need their own identity; snapshot id must be in the address. | **Accepted.** `FileId` enum with FS-specific variants; snapshot ancestor scopes the address domain (§1.3, §2, D12). |
 | 8 | Percent-encoded `Display` underspecified → can't round-trip. | **Accepted.** Two forms: lossless canonical URI (percent-encode `/` and `%` too, round-trip test) + lossy human `Display` (§2, D12). |
