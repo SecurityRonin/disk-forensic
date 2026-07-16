@@ -6,6 +6,16 @@ encryption. Each row links out to that repo's own `docs/validation.md` (the
 correctness evidence) and `tests/data/README.md` (per-fixture provenance). This page
 does not duplicate those; it is the map.
 
+## Architecture
+
+Raw evidence descends through four decode layers — container, partition scheme,
+optional full-disk encryption, and filesystem — into one unified read-only
+`FileSystem` view (`forensic-vfs`), which the `disk-forensic` orchestrator and the
+`4n6mount` FUSE bridge consume. Every reader in every layer ships a `-core` reader
+plus a `-forensic` graded auditor; the tables below index each one's validation.
+
+![disk-forensic umbrella architecture — container to partition to crypto to filesystem to forensic-vfs to disk-forensic/4n6mount](assets/umbrella-architecture.svg)
+
 ## The two-path validation model (binding)
 
 Every reader separates two validation paths:
