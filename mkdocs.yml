@@ -43,6 +43,7 @@ nav:
   - Home: index.md
   - Architecture: architecture.md
   - Validation: VALIDATION.md
+  - Umbrella Validation Inventory: validation-inventory.md
   - Privacy Policy: privacy.md
   - Terms of Service: terms.md
 
