@@ -386,37 +386,22 @@ fn try_peel(path: &Path) -> Result<Option<Vec<u8>>, OpenError> {
         let mut file = File::open(path)?;
         file.read(&mut head)?
     };
+    // Only compression wrappers are peeled here; archive *containers* (AFF4/AD1,
+    // both ZIP-based) have dedicated decoders downstream and must not be
+    // intercepted. The sniff/decode/guard policy lives once in
+    // archive_core::peel_detour.
     if !archive_core::sniff(name, &head[..read]).is_compression_wrapper() {
         return Ok(None);
     }
-    // Require the extension to agree — a raw disk with coincidental magic but no
-    // compression extension must open as raw, not be mis-peeled.
-    let Some(name) = name else {
-        return Ok(None); // cov:unreachable: a path that File::open succeeded on has a file name
-    };
-    if !has_compression_ext(name) {
-        return Ok(None);
-    }
     let data = std::fs::read(path)?;
-    match archive_core::peel_bytes(&data, Some(name)) {
-        Ok(archive_core::PeelOutcome::Peeled { inner, .. }) => Ok(Some(inner)),
-        Ok(_) => Ok(None), // cov:unreachable: head-sniff already confirmed a compression wrapper
+    match archive_core::peel_detour(&data, name, &archive_core::Limits::default()) {
+        Ok(archive_core::Detour::Inner(inner)) => Ok(Some(inner)),
+        Ok(archive_core::Detour::NotPacked) => Ok(None),
         Err(e) => Err(OpenError::Decode(
             ContainerFormat::Raw,
             format!("archive peel failed: {e}"),
         )),
     }
-}
-
-/// Does the file name carry a compression-wrapper extension (incl. tar aliases)?
-fn has_compression_ext(name: &str) -> bool {
-    let lower = name.to_ascii_lowercase();
-    [
-        ".gz", ".bz2", ".xz", ".tgz", ".taz", ".tbz", ".tbz2", ".txz", ".tzst", ".tlz", ".zst",
-        ".z",
-    ]
-    .iter()
-    .any(|e| lower.ends_with(e))
 }
 
 /// Sniff an in-memory (peeled) image's container format.
