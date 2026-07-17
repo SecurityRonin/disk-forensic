@@ -13,6 +13,10 @@ exclude = ["fuzz/", ".github/", "wix/", "deny.toml", "renovate.json", ".pre-comm
 
 [dependencies]
 thiserror = "2"
+# Archive-detour peel: transparently unwrap a compression-wrapped image
+# (evidence.dd.gz -> dd) before container detection. Path dep until archive-core
+# is published (a coordinated in-flight change).
+archive-core = { path = "../archive-forensic/core", version = "0.1.0" }
 # Sibling scheme parsers (one per partitioning scheme) and the knowledge base.
 # Partition-scheme analyzers (each now a *-partition-forensic workspace with a
 # *-partition-core reader).
@@ -72,6 +76,8 @@ serde = [
 [dev-dependencies]
 serde_json = "1"
 tempfile = "3"
+# Compress fixtures on the fly for the archive-detour (peel) opener tests.
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 # AFF4 fixture builder (physical + logical synthetic containers) for the
 # container/logical opener tests. `test-helpers` exposes `aff4::testutil`; it is
 # a dev-only feature and never compiles into a normal `cargo build`.

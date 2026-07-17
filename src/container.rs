@@ -80,6 +80,33 @@ pub enum OpenError {
 /// image, or [`OpenError::Unsupported`] for a container whose decoder is not yet
 /// wired.
 pub fn open(path: &Path) -> Result<OpenedImage, OpenError> {
+    open_depth(path, 0)
+}
+
+/// Maximum nested compression layers to peel before giving up (bomb guard).
+const MAX_PEEL_DEPTH: usize = 4;
+
+fn open_depth(path: &Path, depth: usize) -> Result<OpenedImage, OpenError> {
+    // Transparently peel an OUTER compression wrapper (evidence.dd.gz -> dd)
+    // via archive-core — but only when BOTH the content magic and the file
+    // extension agree it is a wrapper, so a raw disk with coincidental magic
+    // still opens as raw. A raw inner is served from memory; a container inner
+    // is spilled to a temp file and re-opened.
+    if depth < MAX_PEEL_DEPTH {
+        if let Some(inner) = try_peel(path)? {
+            if sniff_bytes(&inner) == ContainerFormat::Raw {
+                let size = inner.len() as u64;
+                return Ok(OpenedImage {
+                    format: ContainerFormat::Raw,
+                    size,
+                    reader: Box::new(std::io::Cursor::new(inner)),
+                    findings: Vec::new(),
+                });
+            }
+            let tmp = spill_to_tmp(&inner)?;
+            return open_depth(&tmp, depth + 1);
+        }
+    }
     let mut file = File::open(path)?;
     let format = sniff(&mut file)?;
     match format {
@@ -347,6 +374,67 @@ pub fn detect(header: &[u8], footer: &[u8]) -> ContainerFormat {
 ///
 /// # Errors
 /// Propagates any I/O error from seeking/reading the image.
+/// Attempt to peel one outer compression wrapper. Returns the inner bytes when
+/// `path` is a compression-wrapped image (magic AND extension agree), `None`
+/// when it is not a wrapper, and an error only when a genuinely-named wrapper
+/// fails to decode.
+fn try_peel(path: &Path) -> Result<Option<Vec<u8>>, OpenError> {
+    let name = path.file_name().and_then(|n| n.to_str());
+    // Sniff the head only — never slurp a large non-wrapper image.
+    let mut head = [0u8; 16];
+    let read = {
+        let mut file = File::open(path)?;
+        file.read(&mut head)?
+    };
+    if !archive_core::sniff(name, &head[..read]).is_compression_wrapper() {
+        return Ok(None);
+    }
+    // Require the extension to agree — a raw disk with coincidental magic but no
+    // compression extension must open as raw, not be mis-peeled.
+    let Some(name) = name else {
+        return Ok(None); // cov:unreachable: a path that File::open succeeded on has a file name
+    };
+    if !has_compression_ext(name) {
+        return Ok(None);
+    }
+    let data = std::fs::read(path)?;
+    match archive_core::peel_bytes(&data, Some(name)) {
+        Ok(archive_core::PeelOutcome::Peeled { inner, .. }) => Ok(Some(inner)),
+        Ok(_) => Ok(None), // cov:unreachable: head-sniff already confirmed a compression wrapper
+        Err(e) => Err(OpenError::Decode(
+            ContainerFormat::Raw,
+            format!("archive peel failed: {e}"),
+        )),
+    }
+}
+
+/// Does the file name carry a compression-wrapper extension (incl. tar aliases)?
+fn has_compression_ext(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    [
+        ".gz", ".bz2", ".xz", ".tgz", ".taz", ".tbz", ".tbz2", ".txz", ".tzst", ".tlz", ".zst",
+        ".z",
+    ]
+    .iter()
+    .any(|e| lower.ends_with(e))
+}
+
+/// Sniff an in-memory (peeled) image's container format.
+fn sniff_bytes(bytes: &[u8]) -> ContainerFormat {
+    sniff(&mut std::io::Cursor::new(bytes)).unwrap_or(ContainerFormat::Raw)
+}
+
+/// Spill peeled bytes to a temp file so a path-based container decoder can open
+/// them (the rare compression-wrapped *container*, e.g. `evidence.E01.gz`).
+fn spill_to_tmp(bytes: &[u8]) -> Result<std::path::PathBuf, OpenError> {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let path = std::env::temp_dir().join(format!("disk4n6-peel-{}-{n}.img", std::process::id()));
+    std::fs::write(&path, bytes)?;
+    Ok(path)
+}
+
 pub fn sniff<R: Read + Seek>(reader: &mut R) -> std::io::Result<ContainerFormat> {
     let len = reader.seek(SeekFrom::End(0))?;
 
