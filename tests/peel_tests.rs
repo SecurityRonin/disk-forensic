@@ -1,4 +1,4 @@
-//! Archive-detour (peel) opener tests: `disk_forensic::container::open`
+//! Archive-layer (peel) opener tests: `disk_forensic::container::open`
 //! transparently unwraps a compression-wrapped image via `archive-core`.
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 

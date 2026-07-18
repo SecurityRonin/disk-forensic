@@ -389,14 +389,14 @@ fn try_peel(path: &Path) -> Result<Option<Vec<u8>>, OpenError> {
     // Only compression wrappers are peeled here; archive *containers* (AFF4/AD1,
     // both ZIP-based) have dedicated decoders downstream and must not be
     // intercepted. The sniff/decode/guard policy lives once in
-    // archive_core::peel_detour.
+    // archive_core::peel_archive.
     if !archive_core::sniff(name, &head[..read]).is_compression_wrapper() {
         return Ok(None);
     }
     let data = std::fs::read(path)?;
-    match archive_core::peel_detour(&data, name, &archive_core::Limits::default()) {
-        Ok(archive_core::Detour::Inner(inner)) => Ok(Some(inner)),
-        Ok(archive_core::Detour::NotPacked) => Ok(None),
+    match archive_core::peel_archive(&data, name, &archive_core::Limits::default()) {
+        Ok(archive_core::Peel::Inner(inner)) => Ok(Some(inner)),
+        Ok(archive_core::Peel::NotPacked) => Ok(None),
         Err(e) => Err(OpenError::Decode(
             ContainerFormat::Raw,
             format!("archive peel failed: {e}"),
