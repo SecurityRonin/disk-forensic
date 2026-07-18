@@ -88,7 +88,7 @@ prior-art survey and adversarial review log are preserved there under
 |---|---|---|
 | — | Container decode (E01/VMDK/VHDX/VHD/QCOW2/DMG/raw/ISO), MBR/GPT/APM parsing, live triage (macOS/Linux/Windows), ISO filesystem analysis, acquisition-integrity findings | ✅ Shipped |
 | 1 | Extract the `forensic-vfs` leaf: the four trait contracts + `FsKind` newtype + `PathSpec` + `FsMeta` + adapters, plus `Registry` and the generic recursive `Registry::resolve`. | ✅ Shipped (`forensic-vfs` 0.3, published) |
-| 2 | `forensic-vfs-engine`: `default_registry()` wiring the concrete readers + per-reader `Probe` impls + `Vfs::open(path)`; per-partition filesystem mounting. | 🔶 In progress — the engine crate exists; being relocated to its own repo out of the `forensic-vfs` workspace |
+| 2 | `forensic-vfs-engine`: `default_registry()` wiring the concrete readers + per-reader `Probe` impls + `Vfs::open(path)`; per-partition filesystem mounting. | ✅ Shipped — a separate published repo (`forensic-vfs-engine` 0.1.0); the engine repoint onto the 0.4 leaf lands in the 0.4 fleet cut |
 | 3 | One issen provider replaces the per-format wrapper crates (ADR-0010). | Planned |
 | 4 | `4n6mount` migrates onto the engine, dropping its own detect/dispatch. | Planned |
 | 5 | Crypto + snapshots + nesting: `CryptoLayer` (BitLocker/LUKS/FileVault), VSS `VolumeSystem`, nested images, `TemporalCohort` snapshots. | 🔶 Partial — reader crates exist (bitlocker/luks/filevault/veracrypt, VSS); engine wiring pending |
