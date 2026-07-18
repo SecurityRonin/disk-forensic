@@ -8,11 +8,11 @@
 
 **`disk4n6` is the fleet's universal forensic disk layer: point it at any container — E01, VMDK, VHDX, VHD, QCOW2, DMG, raw `dd`, or ISO — and it decodes the wrapper, identifies the partitioning scheme (MBR / GPT / APM), and runs the right forensic parser. Run it bare and it maps every physical disk and partition on the live system — macOS, Linux, and Windows in one unified output — with acquisition-integrity findings you need before you image.**
 
-The library is also the foundation for the fleet's [universal forensic VFS](#architecture): a layered trait model that lets `issen`, [`4n6mount`](https://github.com/SecurityRonin/4n6mount), and `disk4n6` share one open-any-image entry point instead of three parallel detection stacks.
+The library is also one of three front-ends over the fleet's [universal forensic VFS](https://github.com/SecurityRonin/forensic-vfs): a layered trait model that lets `issen`, [`4n6mount`](https://github.com/SecurityRonin/4n6mount), and `disk4n6` share one open-any-image entry point instead of three parallel detection stacks.
 
 ## [`4n6mount`](https://github.com/SecurityRonin/4n6mount) — mount any image as a filesystem
 
-[`4n6mount`](https://github.com/SecurityRonin/4n6mount) FUSE-mounts any image `disk-forensic` can open, so evidence becomes a normal read-only directory. It walks E01 · VMDK · VHDX · QCOW2 · DMG, through MBR / GPT / APM partitions, past BitLocker / LUKS / FileVault encryption, into NTFS / ext4 / APFS / XFS / …, then exposes the resolved filesystem as a directory you can `ls`, `grep`, and `cat` — and point any tool at. One `mount` covers every format on every OS. The four VFS contracts exist so one engine drives this for all three front-ends.
+[`4n6mount`](https://github.com/SecurityRonin/4n6mount) FUSE-mounts any image `disk-forensic` can open, so evidence becomes a normal read-only directory. It composes the whole stack — container, partition table, encryption, filesystem — across [every reader in the fleet](https://github.com/SecurityRonin/forensic-vfs#the-reader-fleet), then exposes the resolved filesystem as a directory you can `ls`, `grep`, and `cat` — and point any tool at. One `mount` covers every format on every OS, because one shared engine drives all three front-ends.
 
 ## See it work in 30 seconds
 
@@ -195,7 +195,7 @@ for e in img.entries() {                     // LogicalEntry: path, is_dir, size
 - → filesystem (NTFS / ext4 / APFS / HFS+ / FAT / ISO)
 - → files
 
-`disk-forensic` itself parses the volume layer (MBR/GPT/APM) and the ISO filesystem; [`forensic-vfs`](https://github.com/SecurityRonin/forensic-vfs) defines the `ImageSource` byte-edge plus the volume/crypto/filesystem traits, and `forensic-vfs-engine` composes the concrete readers (NTFS/ext4/APFS/HFS+/FAT/…) into a `Vfs::open(path) → Evidence` walk.
+`disk-forensic` itself parses the volume layer (MBR/GPT/APM) and the ISO filesystem; [`forensic-vfs`](https://github.com/SecurityRonin/forensic-vfs) defines the `ImageSource` byte-edge plus the layered `*Open` traits, and `forensic-vfs-engine` composes the concrete readers (the [full reader fleet](https://github.com/SecurityRonin/forensic-vfs#the-reader-fleet)) into an open-any-image walk.
 
 ```rust
 use std::fs::File;
@@ -235,9 +235,9 @@ for disk in livedisk::enumerate()? {
 
 ## Architecture
 
-`disk-forensic` is one of three front-ends over the fleet's universal forensic VFS — a single open-any-image entry point shared by `issen`, `4n6mount`, and `disk4n6`, instead of three parallel detection stacks. The stack is three tiers: the published [`forensic-vfs`](https://crates.io/crates/forensic-vfs) contract leaf (0.3 — the four trait contracts plus the generic `Registry::resolve` resolver), the `forensic-vfs-engine` orchestration library that wires in the concrete readers, and the front-ends on top.
+`disk-forensic` is one of three front-ends — with `issen` and [`4n6mount`](https://github.com/SecurityRonin/4n6mount) — over the fleet's universal forensic VFS: one open-any-image entry point they share instead of three parallel detection stacks. This crate owns container decode, MBR/GPT/APM volume parsing, ISO filesystem analysis, live triage, and report rendering; the general open-any-image walk comes from the shared engine.
 
-[`docs/architecture.md`](docs/architecture.md) covers disk-forensic's own role and the four-component crate breakdown. The VFS contract, core types, and design decisions are documented in [forensic-vfs](https://github.com/SecurityRonin/forensic-vfs) — its README, [`docs/decisions/` ADRs](https://github.com/SecurityRonin/forensic-vfs/tree/main/docs/decisions), and PRD are the source of truth.
+The shared VFS story — the layered `*Open` model, the `SourceOpen` resolution graph, the crate topology, and the [full reader fleet](https://github.com/SecurityRonin/forensic-vfs#the-reader-fleet) — is documented once, in [forensic-vfs](https://github.com/SecurityRonin/forensic-vfs) (its README, [`docs/architecture.md`](https://github.com/SecurityRonin/forensic-vfs/blob/main/docs/architecture.md), [`docs/PRD.md`](https://github.com/SecurityRonin/forensic-vfs/blob/main/docs/PRD.md), and [`docs/decisions/` ADRs](https://github.com/SecurityRonin/forensic-vfs/tree/main/docs/decisions)), which is the source of truth. [`docs/architecture.md`](docs/architecture.md) covers disk-forensic's own role.
 
 ### Design properties
 

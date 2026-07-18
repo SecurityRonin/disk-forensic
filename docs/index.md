@@ -61,4 +61,4 @@ A corrupt or unsupported-variant container fails loud with a clear decode error 
 
 ## Architecture
 
-`disk-forensic` sits over a layered `ImageSource` trait that composes container decoders, volume systems, crypto layers, and filesystems as a graph, rather than a fixed decode pipeline. The contract leaf [`forensic-vfs`](https://crates.io/crates/forensic-vfs) is published (0.3): the four trait contracts plus the generic `Registry::resolve` resolver. See [Architecture](architecture.md) for the four-component crate breakdown, the layered model, and phase-by-phase status.
+`disk-forensic` is one of three front-ends over the fleet's universal forensic VFS, sharing one open-any-image entry point with `issen` and [`4n6mount`](https://github.com/SecurityRonin/4n6mount). The layered `*Open` model, the `SourceOpen` resolution graph, and the [full reader fleet](https://github.com/SecurityRonin/forensic-vfs#the-reader-fleet) are documented in [forensic-vfs](https://github.com/SecurityRonin/forensic-vfs) — the source of truth. See [Architecture](architecture.md) for disk-forensic's own role.
