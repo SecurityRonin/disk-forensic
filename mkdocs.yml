@@ -42,7 +42,6 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Architecture: architecture.md
-  - Design: design/2026-07-06-universal-forensic-vfs.md
   - Validation: VALIDATION.md
   - Umbrella Validation Inventory: validation-inventory.md
   - Publication Venues: paper-venue.md

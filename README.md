@@ -237,7 +237,7 @@ for disk in livedisk::enumerate()? {
 
 `disk-forensic` is one of three front-ends over the fleet's universal forensic VFS — a single open-any-image entry point shared by `issen`, `4n6mount`, and `disk4n6`, instead of three parallel detection stacks. The stack is three tiers: the published [`forensic-vfs`](https://crates.io/crates/forensic-vfs) contract leaf (0.3 — the four trait contracts plus the generic `Registry::resolve` resolver), the `forensic-vfs-engine` orchestration library that wires in the concrete readers, and the front-ends on top.
 
-[`docs/architecture.md`](docs/architecture.md) is the source of truth: the four-component crate breakdown, the layered `ImageSource` model, and the phase-by-phase status. The [full design doc](docs/design/2026-07-06-universal-forensic-vfs.md) carries the detailed specification.
+[`docs/architecture.md`](docs/architecture.md) covers disk-forensic's own role and the four-component crate breakdown. The VFS contract, core types, and design decisions are documented in [forensic-vfs](https://github.com/SecurityRonin/forensic-vfs) — its README, [`docs/decisions/` ADRs](https://github.com/SecurityRonin/forensic-vfs/tree/main/docs/decisions), and PRD are the source of truth.
 
 ### Design properties
 
