@@ -58,7 +58,7 @@
   <rect x="90" y="274" width="420" height="84" rx="6" fill="#0f172a"/>
   <rect x="90" y="274" width="420" height="84" rx="6" fill="rgba(136,19,55,0.38)" stroke="#fb7185" stroke-width="1.5"/>
   <text x="106" y="295" fill="#fb7185" font-size="11" font-weight="700">CRYPTO / FDE</text>
-  <text x="494" y="295" fill="#fb7185" font-size="9" font-weight="700" text-anchor="end">→ CryptoLayer</text>
+  <text x="494" y="295" fill="#fb7185" font-size="9" font-weight="700" text-anchor="end">→ EncryptionLayer</text>
   <text x="106" y="309" fill="#94a3b8" font-size="8">unlock → cleartext · audited RustCrypto · optional</text>
   <text x="106" y="332" fill="#e2e8f0" font-size="10">bitlocker · luks · filevault · veracrypt</text>
   <text x="106" y="350" fill="#fca5a5" font-size="8">decrypt-validated vs real dfVFS / cryptsetup images</text>
@@ -97,9 +97,9 @@
   <!-- ENGINE -->
   <rect x="90" y="490" width="820" height="66" rx="6" fill="#0f172a"/>
   <rect x="90" y="490" width="820" height="66" rx="6" fill="rgba(76,29,149,0.42)" stroke="#a78bfa" stroke-width="1.5"/>
-  <text x="500" y="513" fill="#a78bfa" font-size="13" font-weight="700" text-anchor="middle">forensic-vfs — four contracts + engine</text>
-  <text x="500" y="530" fill="#c4b5fd" font-size="9" text-anchor="middle">ImageSource · VolumeSystem · CryptoLayer · FileSystem   —   Vfs::open(path) → Evidence</text>
-  <text x="500" y="546" fill="#94a3b8" font-size="9" text-anchor="middle">zero-dep KNOWLEDGE contract (published 0.2.0) · one engine composes the four</text>
+  <text x="500" y="513" fill="#a78bfa" font-size="13" font-weight="700" text-anchor="middle">forensic-vfs — four object contracts + five *Open traits</text>
+  <text x="500" y="530" fill="#c4b5fd" font-size="9" text-anchor="middle">ImageSource · VolumeSystem · EncryptionLayer · FileSystem   —   five *Open traits resolve the stack</text>
+  <text x="500" y="546" fill="#94a3b8" font-size="9" text-anchor="middle">zero-dep KNOWLEDGE contract (published) · engine + resolver compose the layers</text>
 
   <g stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)">
     <path d="M 300 556 L 250 588" fill="none"/>
@@ -126,7 +126,7 @@
   <text x="785" y="632" fill="#94a3b8" font-size="9" text-anchor="middle">FUSE / Dokan mount</text>
   <text x="785" y="646" fill="#94a3b8" font-size="9" text-anchor="middle">via MountFs (inode adapter)</text>
 
-  <text x="90" y="700" fill="#475569" font-size="9">Colour = concern: amber ImageSource · slate VolumeSystem · rose CryptoLayer · emerald FileSystem · violet engine · cyan consumers</text>
+  <text x="90" y="700" fill="#475569" font-size="9">Colour = concern: amber ImageSource · slate VolumeSystem · rose EncryptionLayer · emerald FileSystem · violet engine · cyan consumers</text>
   <text x="90" y="716" fill="#475569" font-size="9">Dashed amber = format handled only in the standalone engine, no fleet `*-core` crate yet (a coverage gap to extract).</text>
   <text x="90" y="732" fill="#334155" font-size="8">Regenerated as a disk-forensic pre-publish action — keep in lockstep with the VFS-contract-wiring-status table.</text>
 </svg>

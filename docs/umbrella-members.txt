@@ -18,7 +18,7 @@ gpt-partition-forensic
 mbr-partition-forensic
 apm-partition-forensic
 
-# --- CRYPTO / FDE (CryptoLayer) ---
+# --- ENCRYPTION / FDE (EncryptionLayer) ---
 bitlocker-forensic
 luks-forensic
 filevault-forensic

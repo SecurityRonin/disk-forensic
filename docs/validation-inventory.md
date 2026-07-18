@@ -11,35 +11,34 @@ does not duplicate those; it is the map.
 Evidence enters by one of **two parallel paths** that converge at the engine:
 a **physical disk stack** (container → partition → optional full-disk encryption →
 filesystem) and a **logical-archive path** (`.zip`/`.iso`/`.ad1`/`.dar`/`.tar`/`.7z`
-opened directly as a file tree, bypassing partition + crypto). Both resolve to the
-same four forensic-vfs contracts, which the `issen`, `disk-forensic`, and `4n6mount`
-consumers navigate. Every reader ships a `-core` reader plus a `-forensic` graded
-auditor; the tables below index each one's validation.
+opened directly as a file tree, bypassing partition + encryption). Both resolve to
+the same forensic-vfs object contracts (`ImageSource` · `VolumeSystem` ·
+`EncryptionLayer` · `FileSystem`), peeled by the five `*Open` opener traits, which the
+`issen`, `disk-forensic`, and `4n6mount` consumers navigate. The layer model and the
+full reader roster are canonical in
+[forensic-vfs](https://github.com/SecurityRonin/forensic-vfs) — its
+[README reader fleet](https://github.com/SecurityRonin/forensic-vfs#the-reader-fleet)
+and [`docs/architecture.md`](https://github.com/SecurityRonin/forensic-vfs/blob/main/docs/architecture.md).
+Every reader ships a `-core` reader plus a `-forensic` graded auditor; the tables
+below index each one's validation.
 
 ![disk-forensic umbrella architecture — container to partition to crypto to filesystem to forensic-vfs to disk-forensic/4n6mount](assets/umbrella-architecture.svg)
 
 ## VFS contract wiring status
 
-Every reader plugs into forensic-vfs behind an optional `vfs` feature. This is the
-audit of that wiring at last regeneration (a pre-publish action — see Maintenance):
+Per-contract wiring is **canonical in forensic-vfs** and is not duplicated here — see
+[PRD §6 (coverage matrix, grep-verified)](https://github.com/SecurityRonin/forensic-vfs/blob/main/docs/PRD.md#6-coverage-matrix-verified-2026-07)
+and the [reader fleet](https://github.com/SecurityRonin/forensic-vfs#the-reader-fleet)
+roster (per-reader status by layer). At last verification (2026-07): 5 `ImageSource`
+(container) impls + vmdk/dmg via disk-forensic; **all 3 `VolumeSystem` schemes
+(MBR/GPT/APM) wired**; 13 `FileSystem` impls (10 filesystems + zip/ad1/dar archives);
+`EncryptionLayer` (BitLocker/LUKS/FileVault/VeraCrypt) not yet wired.
 
-| Contract | ✅ merged to `main` | 🔶 built, on feature branch (merge + publish) | ❌ adapter missing |
-|---|---|---|---|
-| **ImageSource** (container) | qcow2, vhdx | ewf, vhd, aff4 | **vmdk, dmg** |
-| **VolumeSystem** (partition) | — | gpt, mbr, apm | — |
-| **CryptoLayer** (FDE) | veracrypt (0.2.1) | bitlocker, luks, filevault | — |
-| **FileSystem** · disk | ntfs, fat, udf, iso9660*, **xfs (0.1.1)**, btrfs | ext4fs, apfs, hfsplus, iso9660 | **zfs, ufs, refs** |
-| **FileSystem** · archive/logical | zip, ad1, dar | — | **tar, tar.gz, tar.bz2, 7z** — no fleet crate (engine-only) |
-
-*iso9660 has both a merged path and a `feat/vfs-iso` branch; treat the branch as the source of truth until merged.
-
-**Formats handled *outside* a fleet crate.** `tar` / `tar.gz` / `tar.bz2` / `7z` are
-implemented only inside the standalone engine (old `ForensicFs` trait) — no
-`*-core` reader crate exists. Compression codecs (`gz`, `bz2`, `xz`, `zstd`, `lz4`)
-ride *inside* those archives, not as standalone readers. These are real coverage
-gaps, shown dashed-amber in the diagram; Phase D extracts `tar-core` / `7z-core`.
-
-**Remaining wiring** (the [fleet-vfs-consolidation](https://github.com/SecurityRonin/issen) migration): reconcile the engine (Phase A); write the 5 missing disk adapters — vmdk/dmg `ImageSource`, zfs/ufs/refs `FileSystem` — plus the archive `tar-core`/`7z-core` crates (Phase B); merge + publish the 11 branch adapters (Phase C); move `4n6mount` + `disk-forensic` onto the engine and retire the duplicate decode stacks (Phase D).
+**disk-forensic-specific gap.** `tar` / `tar.gz` / `tar.bz2` / `7z` reach the logical
+path only through the engine's archive layer, not a standalone `*-core` reader crate;
+compression codecs (`gz`, `bz2`, `xz`, `zstd`, `lz4`) ride *inside* those archives, not
+as standalone readers (shown dashed-amber in the diagram above). This inventory tracks
+the **test-data provenance** behind each reader; the wiring roster is forensic-vfs's.
 
 ## The two-path validation model (binding)
 
@@ -138,15 +137,19 @@ them **before publishing `disk-forensic`** (treat a stale map as a publish block
 a diagram that claims a reader is integrated when it is not is the dangling-link
 failure applied to architecture):
 
-1. **Re-run the wiring audit** — adapter presence per contract, per repo *and
+1. **Re-run the wiring audit** — adapter presence per object contract, per repo *and
    branch* (an adapter on an unmerged `feat/*` branch is not "wired to `main`"):
    ```sh
    for r in <umbrella repos>; do
-     git -C "$r" grep -lE 'impl (ImageSource|VolumeSystem|CryptoLayer|FileSystem) for' \
+     git -C "$r" grep -lE 'impl (ImageSource|VolumeSystem|EncryptionLayer|FileSystem) for' \
        $(git -C "$r" branch --format='%(refname:short)') -- '*.rs'
    done
    ```
-2. **Update** the *VFS contract wiring status* table (✅ main / 🔶 branch / ❌ missing).
+2. **Reconcile the wiring status in forensic-vfs, not here** — the per-contract coverage
+   matrix is canonical in [forensic-vfs PRD §6](https://github.com/SecurityRonin/forensic-vfs/blob/main/docs/PRD.md#6-coverage-matrix-verified-2026-07)
+   and the [reader fleet](https://github.com/SecurityRonin/forensic-vfs#the-reader-fleet)
+   roster; this page links to them rather than keeping a second copy.
 3. **Regenerate** `docs/assets/umbrella-architecture.svg` via the architecture-diagram
-   skill and **render-verify** it (no overlaps, legend outside boxes, text within boxes).
+   skill and **render-verify** it (no overlaps, legend outside boxes, text within boxes),
+   keeping its trait labels in step with the forensic-vfs `*Open` / object-contract model.
 4. **`mkdocs build --strict`** must pass (no broken image/nav links).

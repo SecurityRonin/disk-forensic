@@ -11,9 +11,11 @@ and deadlines.
 
 Forensic evidence acquisition is a fragmented zoo of one-off readers — E01, VMDK,
 QCOW2, VHDX, GPT/MBR/APM, BitLocker/LUKS/FileVault, NTFS/ext4/APFS/XFS/…, zip/tar/7z.
-The contribution: **systematize the whole domain onto four navigation contracts** —
-`ImageSource` · `VolumeSystem` · `CryptoLayer` · `FileSystem` — and show it collapses
-to that taxonomy, backed by a **reproducible open-source reference implementation**
+The contribution: **systematize the whole domain onto five layer-opener traits** —
+`ArchiveOpen` · `ContainerOpen` · `VolumeSystemOpen` · `EncryptionOpen` ·
+`FileSystemOpen` — that peel onto four positioned-read object contracts —
+`ImageSource` · `VolumeSystem` · `EncryptionLayer` · `FileSystem` — and show the
+whole domain collapses to that taxonomy, backed by a **reproducible open-source reference implementation**
 (the published crates + Tier-1 validation). That's taxonomy + new viewpoint +
 evidence: a Systematization-of-Knowledge contribution.
 
