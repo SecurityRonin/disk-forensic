@@ -1,9 +1,12 @@
 # Architecture — disk-forensic (a VFS consumer)
 
-`disk-forensic` / `disk4n6` is a **front-end consumer** of the fleet's universal
-forensic VFS: one open-any-image entry point shared by `issen`, `4n6mount`, and
-`disk4n6`, rather than three parallel detection and dispatch stacks. This page
-documents disk-forensic's **own** role.
+`disk-forensic` / `disk4n6` is the analyst-facing disk tool. It owns
+`container::open` — the content-sniffing container-decode entry point that `issen`,
+`4n6mount`, and `disk4n6` share for raw-disk evidence, so there is one container
+stack, not three. The complementary *filesystem*-VFS story — the layered `*Open`
+model and the reader fleet — is `forensic-vfs` (below). Consolidating disk-forensic's
+general open-any-image walk onto `forensic-vfs-engine` is planned, not yet wired.
+This page documents disk-forensic's **own** role.
 
 The shared VFS story — the layered `*Open` model, the `SourceOpen` resolution
 graph, the crate topology, and the full reader fleet — is documented once, in
@@ -27,16 +30,20 @@ responsibilities — the work that is *not* delegated to the shared engine:
 - **Acquisition-integrity findings**.
 - **Report rendering** — text / JSON / DFXML / HTML, normalized into the shared [`forensicnomicon::report`](https://github.com/SecurityRonin/forensicnomicon) findings / provenance / timeline model.
 
-For the *general* open-any-image walk — composing archive → container → volume →
-encryption → filesystem across the whole reader fleet — disk-forensic consumes
-`forensic-vfs-engine` rather than carrying its own detect-and-dispatch stack.
+Today disk-forensic decodes containers through its own `container::open` stack
+(`ewf` / `vmdk` / `qcow2` / `vhdx` / `dmg` / `aff4` / `archive-core` plus the
+MBR/GPT/APM parsers). For the *general* open-any-image walk — composing archive →
+container → volume → encryption → filesystem across the whole reader fleet — the
+planned consolidation is to delegate to `forensic-vfs-engine` rather than grow a
+second detect-and-dispatch stack. That migration is not yet wired: disk-forensic
+carries no `forensic-vfs` dependency at present.
 
 ## Development status
 
 | Scope | Status |
 |---|---|
 | Container decode (E01/VMDK/VHDX/VHD/QCOW2/DMG/AFF4/raw/ISO), MBR/GPT/APM parsing, ISO filesystem analysis, live triage (macOS/Linux/Windows), acquisition-integrity findings | ✅ Shipped |
-| Migration onto `forensic-vfs-engine` for the general open-any-image walk | In progress — tracks the fleet 0.4 cut |
+| Migration onto `forensic-vfs-engine` for the general open-any-image walk | Planned — not yet wired (no `forensic-vfs` dependency); gated on the Case-001 parity check below |
 
 The fleet-wide VFS migration roadmap and per-reader wiring status live in
 [forensic-vfs PRD §7](https://github.com/SecurityRonin/forensic-vfs/blob/main/docs/PRD.md)

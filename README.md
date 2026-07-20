@@ -12,7 +12,7 @@ The library is also one of three front-ends over the fleet's [universal forensic
 
 ## [`4n6mount`](https://github.com/SecurityRonin/4n6mount) — mount any image as a filesystem
 
-[`4n6mount`](https://github.com/SecurityRonin/4n6mount) FUSE-mounts any image `disk-forensic` can open, so evidence becomes a normal read-only directory. It composes the whole stack — container, partition table, encryption, filesystem — across [every reader in the fleet](https://github.com/SecurityRonin/forensic-vfs#the-reader-fleet), then exposes the resolved filesystem as a directory you can `ls`, `grep`, and `cat` — and point any tool at. One `mount` covers every format on every OS, because one shared engine drives all three front-ends.
+[`4n6mount`](https://github.com/SecurityRonin/4n6mount) FUSE-mounts any image `disk-forensic` can open, so evidence becomes a normal read-only directory. It composes the whole stack — container, partition table, encryption, filesystem — across [every reader in the fleet](https://github.com/SecurityRonin/forensic-vfs#the-reader-fleet), then exposes the resolved filesystem as a directory you can `ls`, `grep`, and `cat` — and point any tool at. One `mount` covers every format on every OS, because the shared `forensic-vfs` engine composes every layer behind the mount.
 
 ## See it work in 30 seconds
 
