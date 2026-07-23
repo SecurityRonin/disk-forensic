@@ -12,6 +12,7 @@
 [workspace]
 # Per-package git tags, e.g. `disk-forensic-v0.1.1`. `v[0-9]*` binary triggers never
 # match these — see the fleet release standard.
+git_tag_name = "{{ package }}-v{{ version }}"
 git_tag_enable = true
 git_release_enable = false
 changelog_update = true
