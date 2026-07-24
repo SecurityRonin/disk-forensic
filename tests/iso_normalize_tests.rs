@@ -75,3 +75,30 @@ fn iso_findings_attribute_to_iso_forensic() {
         .iter()
         .all(|f| f.source.analyzer == "iso9660-forensic"));
 }
+
+#[test]
+fn el_torito_boot_entries_surface_as_a_provenance_breadcrumb() {
+    // df.iso is not bootable, so El Torito provenance (and its platform-mapping
+    // closure) needs a boot record. Take the real analysis and add one, then
+    // confirm the boot breadcrumb lists the platform.
+    let mut f = File::open(ISO).unwrap();
+    let mut a = iso9660_forensic::analyse(&mut f).unwrap();
+    a.volume.boot_entries.push(iso9660_forensic::BootRecord {
+        platform: "EFI".to_string(),
+        bootable: true,
+        load_lba: 20,
+        sectors: 4,
+        sha256: None,
+    });
+
+    let prov = disk_forensic::normalize::iso_provenance(&a);
+    let boot = prov
+        .iter()
+        .find(|p| p.label == "El Torito boot")
+        .expect("El Torito breadcrumb missing");
+    assert!(
+        boot.value.contains("EFI"),
+        "platform missing: {}",
+        boot.value
+    );
+}

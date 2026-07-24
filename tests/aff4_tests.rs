@@ -88,3 +88,42 @@ fn truncated_aff4_errors_without_panic() {
         "got {err:?}"
     );
 }
+
+#[test]
+fn map_backed_aff4_with_corrupt_map_entry_is_a_disk_decode_error() {
+    // A Map-backed AFF4 whose turtle classifies it as a disk (container_kind ==
+    // Disk) but whose /map ZIP entry is corrupt: container::open must surface a
+    // typed decode error from the *disk reader* (Aff4Reader::open), not silently
+    // yield a bogus disk. This exercises the disk-open error arm specifically,
+    // distinct from the metadata-classification error path.
+    let mut bytes = aff4::testutil::test_aff4_map(b"MAP-PAYLOAD");
+    // The /map entry is a 28-byte STORED blob beginning with two little-endian
+    // u64 512s (map_offset, length). Find it and flip a byte so the ZIP CRC on
+    // read fails when the reader loads /map.
+    let needle = {
+        let mut n = Vec::new();
+        n.extend_from_slice(&512u64.to_le_bytes());
+        n.extend_from_slice(&512u64.to_le_bytes());
+        n
+    };
+    let pos = bytes
+        .windows(needle.len())
+        .position(|w| w == needle)
+        .expect("map binary should be present in the fixture");
+    bytes[pos] ^= 0xFF;
+
+    let (_dir, path) = write_temp("corrupt-map.aff4", &bytes);
+
+    // Classification still says Disk — the corruption is only in the stream data.
+    assert_eq!(
+        aff4::container_kind(&path).unwrap(),
+        aff4::ContainerKind::Disk,
+        "turtle still classifies the container as a disk"
+    );
+
+    let err = open(&path).unwrap_err();
+    assert!(
+        matches!(err, OpenError::Decode(ContainerFormat::Aff4, _)),
+        "got {err:?}"
+    );
+}

@@ -131,7 +131,7 @@ version = "0.8.6"
 criteria = "safe-to-deploy"
 
 [[exemptions.crossbeam-epoch]]
-version = "0.9.18"
+version = "0.9.20"
 criteria = "safe-to-deploy"
 
 [[exemptions.crossbeam-utils]]
@@ -175,7 +175,7 @@ version = "0.2.6"
 criteria = "safe-to-deploy"
 
 [[exemptions.dmg-core]]
-version = "0.1.2"
+version = "0.1.4"
 criteria = "safe-to-deploy"
 
 [[exemptions.errno]]
@@ -371,7 +371,7 @@ version = "0.3.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.quick-xml]]
-version = "0.37.5"
+version = "0.41.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.quote]]

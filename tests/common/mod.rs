@@ -79,6 +79,14 @@ fn gpt_header(
 
 /// A spec-valid GPT disk (protective MBR + primary/backup headers + array).
 pub fn build_gpt() -> Vec<u8> {
+    build_gpt_with("0FC63DAF-8483-4772-8E79-3D69D8477DE4", "Linux")
+}
+
+/// A spec-valid GPT disk with a single partition of the given type GUID and
+/// name. An unrecognized type GUID (so `type_name()` is `None`) and an empty
+/// name exercise the fallback arms that render/layout take for anonymous,
+/// unknown-type partitions.
+pub fn build_gpt_with(type_guid: &str, name: &str) -> Vec<u8> {
     let mut disk = vec![0u8; SECTOR * SECTORS];
     disk[450] = 0xEE; // protective MBR entry type
     disk[454..458].copy_from_slice(&1u32.to_le_bytes());
@@ -88,11 +96,11 @@ pub fn build_gpt() -> Vec<u8> {
 
     let mut array = vec![0u8; 4 * 128];
     array[0..128].copy_from_slice(&gpt_entry(
-        "0FC63DAF-8483-4772-8E79-3D69D8477DE4",
+        type_guid,
         "00000000-0000-0000-0000-000000000001",
         3,
         30,
-        "Linux",
+        name,
     ));
     let array_crc = gpt_partition_forensic::crc32::checksum(&array);
     let primary = gpt_header(1, 63, 2, 3, 61, 4, 128, array_crc);

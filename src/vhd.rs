@@ -185,8 +185,13 @@ mod tests {
     use std::io::Write;
 
     fn tmp(bytes: &[u8]) -> File {
-        let p =
-            std::env::temp_dir().join(format!("vhd_unit_{}_{:p}.bin", std::process::id(), bytes));
+        // A process-unique, monotonically-increasing id — never a pointer
+        // address, which can collide across parallel test threads (identical
+        // stack slots) and, on Windows, trigger a sharing violation when one
+        // test still holds the file open while another re-creates the path.
+        static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let n = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let p = std::env::temp_dir().join(format!("vhd_unit_{}_{}.bin", std::process::id(), n));
         let mut f = File::create(&p).unwrap();
         f.write_all(bytes).unwrap();
         f.sync_all().unwrap();

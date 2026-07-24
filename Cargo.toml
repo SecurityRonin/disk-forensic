@@ -40,7 +40,7 @@ qcow2 = { version = "0.3.1", package = "qcow2-core" }
 vhdx = { version = "0.3.0", package = "vhdx-core" }
 # Our own pure-Rust DMG/UDIF reader (replaces third-party `udif`, which pulled
 # C-based lzfse/bzip2/lzma). Package dmg-core, imported as `dmg`.
-dmg = { version = "0.1.2", package = "dmg-core" }
+dmg = { version = "0.1.4", package = "dmg-core" }
 # AFF4 reader: a physical AFF4 (aff4:ImageStream / aff4:Map) is a Read+Seek disk
 # view decoded by container::open; a logical AFF4 (aff4:FileImage) is read via
 # the `logical` module. `::aff4` is the reader crate; `aff4` (imported from

@@ -34,7 +34,7 @@ enum Command {
     Version,
 }
 
-/// Parse argv (excluding argv[0]) into a [`Command`]. With no positional
+/// Parse argv (excluding `argv[0]`) into a [`Command`]. With no positional
 /// argument it defaults to listing the host's disks; otherwise the first
 /// positional is the image/device to analyse. `--json` is accepted in any
 /// position; `-h`/`--help` shows usage.
@@ -163,11 +163,24 @@ fn analyse_device(path: &str, json: bool) -> ExitCode {
     // LIVE-WRITABLE (HIGH) when the target is writable, i.e. no hardware
     // write-blocker is engaged. Looked up by device path; absence is non-fatal.
     let target_findings = livedisk::enumerate()
-        .ok()
-        .and_then(|disks| disks.into_iter().find(|d| d.device_path == path))
-        .map(|d| livedisk_forensic::analyse_target(&d))
+        .map(|disks| target_findings_for(disks, path))
         .unwrap_or_default();
     report_disk(path, &mut reader, size, json, target_findings)
+}
+
+/// Resolve the acquisition-target findings for the device at `path` from the
+/// enumerated live disks. Split out as a pure lookup so it is unit-testable
+/// without a real device (a matched disk drives `analyse_target`); an
+/// unmatched path yields no findings.
+fn target_findings_for(
+    disks: Vec<livedisk::PhysicalDisk>,
+    path: &str,
+) -> Vec<forensicnomicon::report::Finding> {
+    disks
+        .into_iter()
+        .find(|d| d.device_path == path)
+        .map(|d| livedisk_forensic::analyse_target(&d))
+        .unwrap_or_default()
 }
 
 /// Analyse an evidence file: sniff/decode its container, route ISO 9660 to the
@@ -360,5 +373,39 @@ mod tests {
         assert!(is_device_path(r"\\.\PhysicalDrive0"));
         assert!(!is_device_path("evidence.E01"));
         assert!(!is_device_path("./image.raw"));
+    }
+
+    fn synthetic_disk(device_path: &str, read_only: bool) -> livedisk::PhysicalDisk {
+        livedisk::PhysicalDisk {
+            device_path: device_path.to_string(),
+            name: "testdisk".to_string(),
+            size_bytes: 1024 * 1024,
+            logical_sector_size: 512,
+            physical_sector_size: 512,
+            model: None,
+            serial: None,
+            removable: false,
+            read_only,
+            synthesized: false,
+            partitions: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn target_findings_for_analyses_the_matching_writable_device() {
+        // A writable acquisition target matched by path surfaces the
+        // LIVE-WRITABLE finding (no write-blocker engaged).
+        let disks = vec![synthetic_disk("/dev/testdisk", false)];
+        let findings = target_findings_for(disks, "/dev/testdisk");
+        assert!(
+            !findings.is_empty(),
+            "a writable matched target should surface findings"
+        );
+    }
+
+    #[test]
+    fn target_findings_for_yields_nothing_when_no_device_matches() {
+        let disks = vec![synthetic_disk("/dev/testdisk", false)];
+        assert!(target_findings_for(disks, "/dev/other").is_empty());
     }
 }

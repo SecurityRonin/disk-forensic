@@ -209,3 +209,18 @@ fn logical_open_rejects_a_physical_aff4() {
         "got {err:?}"
     );
 }
+
+#[test]
+fn logical_image_debug_shows_format_and_entry_count() {
+    // LogicalImage holds a non-Debug backend, so its hand-written Debug renders
+    // the format and the entry count (never the raw backend handle).
+    let (_dir, path, _expected) = build_ad1();
+    let img = logical::open(&path).unwrap();
+    let rendered = format!("{img:?}");
+    assert!(rendered.contains("LogicalImage"), "got {rendered}");
+    assert!(rendered.contains("Ad1"), "format missing: {rendered}");
+    assert!(
+        rendered.contains(&format!("entries: {}", img.entries().len())),
+        "entry count missing: {rendered}"
+    );
+}
