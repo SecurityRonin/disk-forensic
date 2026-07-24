@@ -14,9 +14,8 @@ exclude = ["fuzz/", ".github/", "wix/", "deny.toml", "renovate.json", ".pre-comm
 [dependencies]
 thiserror = "2"
 # Archive-layer peel: transparently unwrap a compression-wrapped image
-# (evidence.dd.gz -> dd) before container detection. Path dep until archive-core
-# is published (a coordinated in-flight change).
-archive-core = { path = "../archive-forensic/core", version = "0.1.0" }
+# (evidence.dd.gz -> dd) before container detection.
+archive-core = "0.1"
 # Sibling scheme parsers (one per partitioning scheme) and the knowledge base.
 # Partition-scheme analyzers (each now a *-partition-forensic workspace with a
 # *-partition-core reader).
