@@ -20,7 +20,7 @@ url = "https://raw.githubusercontent.com/mozilla/supply-chain/main/audits.toml"
 audit-as-crates-io = true
 
 [policy.disk-forensic]
-audit-as-crates-io = true
+audit-as-crates-io = false
 
 [[exemptions.ad1-core]]
 version = "0.1.0"
@@ -164,10 +164,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.digest]]
 version = "0.11.3"
-criteria = "safe-to-deploy"
-
-[[exemptions.disk-forensic]]
-version = "0.11.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.displaydoc]]
