@@ -1,5 +1,7 @@
 [toolchain]
-# Dev/CI toolchain pinned to current stable (fleet policy). disk-forensic is an
-# application, so its declared MSRV (Cargo.toml `rust-version`) matches this pin.
+# Dev/CI toolchain pinned to current stable (fleet policy). disk-forensic is a
+# published library (on crates.io, consumed via `disk_forensic::container::open`,
+# ADR-0011), so its declared MSRV (Cargo.toml `rust-version` = 1.93) is
+# deliberately BELOW this dev pin — the low, CI-verified library-MSRV policy.
 channel = "1.96.0"
 components = ["rustfmt", "clippy"]
