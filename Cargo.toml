@@ -2,7 +2,7 @@
 name = "disk-forensic"
 version = "0.11.0"
 edition = "2021"
-rust-version = "1.96"
+rust-version = "1.93"
 license = "Apache-2.0"
 authors = ["Albert Hui <albert@securityronin.com>"]
 description = "Forensic disk-image orchestrator — decodes E01/VMDK/VHDX/VHD/QCOW2/DMG containers, auto-detects MBR/GPT/APM, and routes ISO 9660 to filesystem analysis"
