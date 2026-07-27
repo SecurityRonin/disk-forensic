@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.2](https://github.com/SecurityRonin/disk-forensic/compare/disk-forensic-v0.11.1...disk-forensic-v0.11.2) - 2026-07-26
+
+### Documentation
+
+- *(msrv)* correct rust-toolchain.toml comment — disk-forensic is a published library, not an app
+
+### Other
+
+- Merge pull request #3 from SecurityRonin/chore/msrv-true-floor
+
 ## [0.11.1](https://github.com/SecurityRonin/disk-forensic/compare/disk-forensic-v0.11.0...disk-forensic-v0.11.1) - 2026-07-25
 
 ### Added
