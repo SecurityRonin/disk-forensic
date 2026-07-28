@@ -30,7 +30,7 @@ forensicnomicon = "1"
 livedisk = { version = "0.2.0", package = "livedisk-core" }
 livedisk-forensic = "0.2.0"
 # Container/image decoders (decode → Read+Seek view of the disk).
-ewf = "0.3.0"
+ewf = "0.4"
 vmdk = { version = "0.8.0", package = "vmdk-core" }
 # VMDK forensic analyzer — its analyse() findings aggregate into the report.
 vmdk-forensic = "0.8.0"
