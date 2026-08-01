@@ -9,6 +9,8 @@
 //! Fixtures come from `aff4::testutil` (the reader crate's own spec-faithful
 //! builder), so ground truth is independent of disk-forensic.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use disk_forensic::container::{open, ContainerFormat, OpenError};
 use std::io::{Read, Seek, SeekFrom};
 

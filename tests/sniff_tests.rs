@@ -1,5 +1,7 @@
 //! Sniffing the container format from a seekable reader (header + footer).
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use disk_forensic::container::{sniff, ContainerFormat};
 use forensicnomicon::{ewf, vhd};
 use std::io::{Cursor, Seek};

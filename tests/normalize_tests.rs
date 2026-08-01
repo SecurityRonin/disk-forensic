@@ -1,5 +1,7 @@
 //! Normalizing each scheme's native analysis into the shared
-//! forensicnomicon::report::Report model.
+//! `forensicnomicon::report::Report` model.
+
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 
 mod common;
 use common::{build_gpt, build_mbr};

@@ -1,5 +1,7 @@
 //! Container-format detection (magic-sniff) — which decoder a disk image needs.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use disk_forensic::container::{detect, ContainerFormat};
 use forensicnomicon::{aff4, dmg, ewf, qcow2, vhd, vhdx, vmdk};
 

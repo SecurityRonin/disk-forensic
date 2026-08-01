@@ -100,7 +100,7 @@ fn mbr_partitions(mbr: &mbr_partition_forensic::MbrAnalysis) -> (u32, Vec<Partit
 }
 
 fn apm_partitions(apm: &apm_partition_forensic::ApmAnalysis) -> (u32, Vec<Partition>) {
-    let bs = apm.block_size as u64;
+    let bs = u64::from(apm.block_size);
     let parts = apm
         .partitions
         .iter()
@@ -113,8 +113,8 @@ fn apm_partitions(apm: &apm_partition_forensic::ApmAnalysis) -> (u32, Vec<Partit
             };
             part(
                 name,
-                p.start_block as u64 * bs,
-                (p.end_block() as u64 - p.start_block as u64 + 1) * bs,
+                u64::from(p.start_block) * bs,
+                (u64::from(p.end_block()) - u64::from(p.start_block) + 1) * bs,
                 p.type_name.clone(),
                 None,
             )

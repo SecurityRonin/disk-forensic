@@ -4,6 +4,8 @@
 //! only an unknown-type partition exercises (the stock fixtures all use known
 //! GPT type GUIDs).
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 mod common;
 use common::build_gpt_with;
 use disk_forensic::{analyse_disk, layout, report};

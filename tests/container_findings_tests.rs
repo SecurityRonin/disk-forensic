@@ -5,6 +5,8 @@
 //! shutdown, …) aggregate into the normalized report alongside the partition and
 //! filesystem findings — not silently dropped at the container boundary.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 const DF_VMDK: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/df.vmdk");
 
 #[test]

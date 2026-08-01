@@ -1,6 +1,8 @@
 //! Opening images: raw passthrough, E01 (EWF) decoding, and unsupported
 //! containers — feeding a decoded `Read + Seek` view into `analyse_disk`.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use disk_forensic::container::{open, ContainerFormat, OpenError};
 use disk_forensic::{analyse_disk, Scheme};
 use std::path::Path;

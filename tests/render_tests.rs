@@ -1,5 +1,7 @@
 //! disk4n6's presentation of the normalized findings Report.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 mod common;
 use common::build_mbr;
 use disk_forensic::{analyse_disk, normalize, report::render};

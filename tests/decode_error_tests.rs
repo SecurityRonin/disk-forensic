@@ -5,6 +5,8 @@
 //! [`container::open`] routes it to the matching decoder, which then rejects the
 //! junk body. This exercises the otherwise-untested error arm of every decoder.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use disk_forensic::container::{open, ContainerFormat, OpenError};
 use forensicnomicon::{dmg, ewf, qcow2, vhd, vhdx, vmdk};
 

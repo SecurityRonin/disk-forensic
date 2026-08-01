@@ -1,4 +1,4 @@
-//! DAR (Denis Corbin Disk ARchiver) and the logical-container path.
+//! DAR (Denis Corbin Disk `ARchiver`) and the logical-container path.
 //!
 //! DAR is a *logical* backup archive (a file tree), not a raw disk, so
 //! [`container::open`] must refuse it with [`OpenError::LogicalContainer`]
@@ -7,6 +7,8 @@
 //!
 //! The fixture `tests/data/v11_hello.dar` is a real `dar`-produced archive
 //! (format 11) holding `files/hello.txt`; provenance mirrors dar-core's corpus.
+
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use disk_forensic::container::{open, ContainerFormat, OpenError};
 use disk_forensic::logical;
