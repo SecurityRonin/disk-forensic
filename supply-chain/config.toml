@@ -178,10 +178,6 @@ criteria = "safe-to-deploy"
 version = "0.3.14"
 criteria = "safe-to-deploy"
 
-[[exemptions.ewf]]
-version = "0.3.0"
-criteria = "safe-to-deploy"
-
 [[exemptions.fastrand]]
 version = "2.4.1"
 criteria = "safe-to-deploy"
