@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.3](https://github.com/SecurityRonin/disk-forensic/compare/disk-forensic-v0.11.2...disk-forensic-v0.11.3) - 2026-08-04
+
+### Fixed
+
+- *(deps)* widen ewf 0.3 -> 0.4 — caret-trapped below the maintained line (layer-1 freshness)
+
 ## [0.11.2](https://github.com/SecurityRonin/disk-forensic/compare/disk-forensic-v0.11.1...disk-forensic-v0.11.2) - 2026-07-26
 
 ### Documentation
