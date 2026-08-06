@@ -182,10 +182,6 @@ criteria = "safe-to-deploy"
 version = "0.4.3"
 criteria = "safe-to-deploy"
 
-[[exemptions.glob]]
-version = "0.3.3"
-criteria = "safe-to-deploy"
-
 [[exemptions.hashbrown]]
 version = "0.15.5"
 criteria = "safe-to-deploy"
@@ -196,10 +192,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.hybrid-array]]
 version = "0.4.13"
-criteria = "safe-to-deploy"
-
-[[exemptions.indexmap]]
-version = "2.14.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.inout]]
@@ -239,7 +231,7 @@ version = "0.4.33"
 criteria = "safe-to-deploy"
 
 [[exemptions.lru]]
-version = "0.12.5"
+version = "0.18.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.lz4_flex]]
@@ -440,10 +432,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.xts-mode]]
 version = "0.5.1"
-criteria = "safe-to-deploy"
-
-[[exemptions.zmij]]
-version = "1.0.21"
 criteria = "safe-to-deploy"
 
 [[exemptions.zopfli]]
