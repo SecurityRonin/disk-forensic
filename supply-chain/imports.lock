@@ -162,6 +162,13 @@ user-id = 347968
 user-login = "h4x0r"
 user-name = "Albert Hui"
 
+[[publisher.safe-read]]
+version = "0.2.1"
+when = "2026-07-25"
+user-id = 347968
+user-login = "h4x0r"
+user-name = "Albert Hui"
+
 [[publisher.vhdx-core]]
 version = "0.3.0"
 when = "2026-06-28"

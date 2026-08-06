@@ -123,6 +123,12 @@ user-id = 347968 # Albert Hui (h4x0r)
 start = "2026-06-08"
 end = "2027-08-05"
 
+[[trusted.safe-read]]
+criteria = "safe-to-deploy"
+user-id = 347968 # Albert Hui (h4x0r)
+start = "2026-07-15"
+end = "2027-08-06"
+
 [[trusted.vhdx-core]]
 criteria = "safe-to-deploy"
 user-id = 347968 # Albert Hui (h4x0r)
