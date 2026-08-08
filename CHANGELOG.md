@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.6](https://github.com/SecurityRonin/disk-forensic/compare/disk-forensic-v0.11.5...disk-forensic-v0.11.6) - 2026-08-08
+
+### Fixed
+
+- commit the refreshed Cargo.lock
+- satisfy the function-coverage gate, and lint the Linux-only test target
+- *(supply-chain)* trust safe-read as ours
+- *(vhd)* bound the BAT by the file before allocating; adopt canonical lints
+
+### Other
+
+- Merge main, taking its Cargo.lock and supply-chain records
+
 ## [0.11.5](https://github.com/SecurityRonin/disk-forensic/compare/disk-forensic-v0.11.4...disk-forensic-v0.11.5) - 2026-08-06
 
 ### Fixed
