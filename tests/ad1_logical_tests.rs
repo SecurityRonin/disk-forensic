@@ -6,8 +6,10 @@
 //! and `logical::open` must list its entries and read a file's bytes back.
 //!
 //! Fixtures come from `ad1::testfix` (the reader crate's spec-faithful builder,
-//! ground truth via independent flate2 + RustCrypto), so correctness is not
+//! ground truth via independent flate2 + `RustCrypto`), so correctness is not
 //! self-referential.
+
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use disk_forensic::container::{open, ContainerFormat, OpenError};
 use disk_forensic::logical;

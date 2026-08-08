@@ -64,9 +64,9 @@ impl VhdReader {
             }
         }
 
-        let data_offset = u64::from_be_bytes(footer[16..24].try_into().unwrap());
-        let virtual_size = u64::from_be_bytes(footer[48..56].try_into().unwrap());
-        let disk_type = u32::from_be_bytes(footer[60..64].try_into().unwrap());
+        let data_offset = safe_read::be_u64(&footer, 16);
+        let virtual_size = safe_read::be_u64(&footer, 48);
+        let disk_type = safe_read::be_u32(&footer, 60);
 
         let layout = match disk_type {
             2 => Layout::Fixed,
@@ -94,19 +94,40 @@ impl VhdReader {
         if &dh[0..8] != b"cxsparse" {
             return Err(invalid("missing dynamic-disk 'cxsparse' header"));
         }
-        let table_offset = u64::from_be_bytes(dh[16..24].try_into().unwrap());
-        let max_entries = u32::from_be_bytes(dh[28..32].try_into().unwrap()) as usize;
-        let block_size = u64::from(u32::from_be_bytes(dh[32..36].try_into().unwrap()));
+        let table_offset = safe_read::be_u64(&dh, 16);
+        let max_entries = safe_read::be_u32(&dh, 28);
+        let block_size = u64::from(safe_read::be_u32(&dh, 32));
         if block_size == 0 || block_size % SECTOR != 0 {
             return Err(invalid("invalid VHD block size"));
         }
 
-        let mut bat_raw = vec![0u8; max_entries * 4];
+        // `max_entries` is an untrusted u32 straight from the image: 0xFFFF_FFFF
+        // asks for a 16 GiB allocation before a single BAT byte is known to
+        // exist. The BAT cannot outgrow the file that holds it, so bound it by
+        // the file first (ADR-0012: never trust a length field).
+        let bat_bytes = u64::from(max_entries) * 4;
+        let file_len = file.seek(SeekFrom::End(0))?;
+        if table_offset > file_len || bat_bytes > file_len - table_offset {
+            return Err(invalid(format!(
+                "VHD BAT claims {bat_bytes} bytes at offset {table_offset}, \
+                 past the end of the {file_len}-byte file"
+            )));
+        }
+        // let-else rather than `.map_err(|_| ...)`: the closure would be a
+        // function llvm-cov can never see executed, because bat_bytes is a u32
+        // times 4 and so always fits a 64-bit usize. The guard is kept for the
+        // 32-bit case; only the closure goes.
+        let Ok(bat_len) = usize::try_from(bat_bytes) else {
+            return Err(invalid(format!("VHD BAT size {bat_bytes} exceeds usize")));
+        };
+
+        let mut bat_raw = vec![0u8; bat_len];
         file.seek(SeekFrom::Start(table_offset))?;
         file.read_exact(&mut bat_raw)?;
         let bat = bat_raw
             .chunks_exact(4)
-            .map(|c| u32::from_be_bytes(c.try_into().unwrap()))
+            .enumerate()
+            .map(|(i, _)| safe_read::be_u32(&bat_raw, i * 4))
             .collect();
 
         let sectors_per_block = block_size / SECTOR;

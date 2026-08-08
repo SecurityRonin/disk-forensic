@@ -12,6 +12,8 @@ categories = ["parser-implementations", "filesystem"]
 exclude = ["fuzz/", ".github/", "wix/", "deny.toml", "renovate.json", ".pre-commit-config.yaml"]
 
 [dependencies]
+# Bounded integer reads over untrusted image headers (ADR-0012).
+safe-read = "0.2"
 thiserror = "2"
 # Archive-layer peel: transparently unwrap a compression-wrapped image
 # (evidence.dd.gz -> dd) before container detection.
@@ -106,3 +108,22 @@ acquisition-integrity findings."""
 assets = [
     ["target/release/disk4n6", "usr/bin/", "755"],
 ]
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+correctness = "deny"
+suspicious = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+# container::open is a flat dispatch over every supported container format;
+# splitting it would scatter one readable match across helpers. Allowed fleet-wide.
+too_many_lines = { level = "allow", priority = 1 }
+module_name_repetitions = { level = "allow", priority = 1 }
+must_use_candidate = { level = "allow", priority = 1 }
+missing_errors_doc = { level = "allow", priority = 1 }
+missing_panics_doc = { level = "allow", priority = 1 }
+cast_possible_truncation = { level = "allow", priority = 1 }
+cast_possible_wrap = { level = "allow", priority = 1 }
+cast_sign_loss = { level = "allow", priority = 1 }
+cast_precision_loss = { level = "allow", priority = 1 }

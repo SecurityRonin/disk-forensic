@@ -275,6 +275,8 @@ const AD1_SEGMENTED_MARKER: &[u8] = b"ADSEGMENTEDFILE";
 /// DAR offset-0 magic — `SAUV_MAGIC_NUMBER` (123) as a big-endian u32. Mirrors
 /// `dar-core`'s `DAR_MAGIC`.
 const DAR_MAGIC: [u8; 4] = [0x00, 0x00, 0x00, 0x7b];
+/// ECMA-119 puts the Primary Volume Descriptor at sector 16 (32768) + 1 byte.
+const ISO_PVD_OFFSET: usize = 32769;
 
 /// A detected disk-image container format.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -282,13 +284,13 @@ const DAR_MAGIC: [u8; 4] = [0x00, 0x00, 0x00, 0x7b];
 pub enum ContainerFormat {
     /// No container wrapper — a flat raw/`dd` image (analyse in place).
     Raw,
-    /// Expert Witness Format (EnCase E01 / Ex01 / logical L01).
+    /// Expert Witness Format (`EnCase` E01 / Ex01 / logical L01).
     Ewf,
     /// Microsoft VHD (fixed / dynamic / differencing).
     Vhd,
     /// Microsoft VHDX.
     Vhdx,
-    /// VMware VMDK (sparse extent).
+    /// `VMware` VMDK (sparse extent).
     Vmdk,
     /// QEMU / KVM QCOW2.
     Qcow2,
@@ -296,11 +298,11 @@ pub enum ContainerFormat {
     /// `aff4:Map`) images decode to a disk view via [`open`]; logical
     /// (`aff4:FileImage`) collections are read via [`crate::logical::open`].
     Aff4,
-    /// AccessData AD1 (FTK "Custom Content Image") — a *logical* file container,
+    /// `AccessData` AD1 (FTK "Custom Content Image") — a *logical* file container,
     /// not a raw disk. Read via [`crate::logical::open`]; [`open`] refuses it
     /// with [`OpenError::LogicalContainer`].
     Ad1,
-    /// DAR (Denis Corbin Disk ARchiver) backup archive — a *logical* file
+    /// DAR (Denis Corbin Disk `ARchiver`) backup archive — a *logical* file
     /// container, not a raw disk. Read via [`crate::logical::open`].
     Dar,
     /// Apple Disk Image (UDIF).
@@ -353,7 +355,6 @@ pub fn detect(header: &[u8], footer: &[u8]) -> ContainerFormat {
         return ContainerFormat::Dar;
     }
     // ── Optical (ISO 9660): "CD001" at the PVD, offset 32769 (ECMA-119) ───────
-    const ISO_PVD_OFFSET: usize = 32769;
     if header.len() >= ISO_PVD_OFFSET + 5 && &header[ISO_PVD_OFFSET..ISO_PVD_OFFSET + 5] == b"CD001"
     {
         return ContainerFormat::Iso;

@@ -6,6 +6,8 @@
 //! known device on the Linux CI runner (where passwordless `sudo` is available);
 //! it auto-skips anywhere `sudo losetup` is not usable, so local `cargo test`
 //! stays green.
+
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 #![cfg(target_os = "linux")]
 
 mod common;
@@ -17,8 +19,7 @@ fn sudo_losetup_available() -> bool {
     Command::new("sudo")
         .args(["-n", "losetup", "--version"])
         .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false)
+        .is_ok_and(|o| o.status.success())
 }
 
 #[test]

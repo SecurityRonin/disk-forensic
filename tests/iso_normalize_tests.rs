@@ -1,5 +1,7 @@
-//! Normalizing an ISO 9660 analysis into the shared forensicnomicon::report
+//! Normalizing an ISO 9660 analysis into the shared `forensicnomicon::report`
 //! model — provenance completeness and the temporal timeline.
+
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use disk_forensic::normalize;
 use std::fs::File;

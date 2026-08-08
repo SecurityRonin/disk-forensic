@@ -28,6 +28,8 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
+#![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
+
 use std::io::{Read, Seek, SeekFrom};
 
 pub mod container;

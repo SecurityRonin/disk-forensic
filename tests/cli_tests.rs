@@ -1,5 +1,7 @@
 //! End-to-end tests for the `disk-forensic` binary.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 mod common;
 use common::{build_gpt, build_mbr};
 use std::path::PathBuf;
@@ -113,7 +115,7 @@ fn no_args_defaults_to_listing() {
     // panic. On the Linux CI runner this drives the sysfs backend end-to-end.
     let out = bin().output().unwrap();
     assert!(
-        matches!(out.status.code(), Some(0) | Some(1)),
+        matches!(out.status.code(), Some(0 | 1)),
         "default-list exit: {:?}, stderr: {}",
         out.status.code(),
         String::from_utf8_lossy(&out.stderr)

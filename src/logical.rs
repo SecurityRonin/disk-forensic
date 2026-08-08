@@ -2,7 +2,7 @@
 //! disk.
 //!
 //! Some forensic containers carry captured files rather than a block device:
-//! AccessData **AD1** (FTK "Custom Content Image") and **AFF4-Logical**
+//! `AccessData` **AD1** (FTK "Custom Content Image") and **AFF4-Logical**
 //! (`aff4:FileImage` collections). They have no partition table or filesystem to
 //! walk with the partition parsers, so they do not fit [`crate::container::open`]
 //! (which yields a `Read + Seek` *disk* view). [`open`] is their home: it lists
@@ -84,7 +84,7 @@ impl core::fmt::Debug for LogicalImage {
         f.debug_struct("LogicalImage")
             .field("format", &self.format)
             .field("entries", &self.entries.len())
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 

@@ -427,6 +427,7 @@ dependencies = [
  "livedisk-forensic",
  "mbr-partition-forensic",
  "qcow2-core",
+ "safe-read",
  "serde",
  "serde_json",
  "tempfile",

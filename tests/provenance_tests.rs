@@ -1,5 +1,7 @@
 //! Provenance breadcrumbs normalized from each scheme's native fields.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 mod common;
 use common::{build_gpt, build_mbr};
 use disk_forensic::{analyse_disk, normalize};

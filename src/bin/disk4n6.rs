@@ -89,6 +89,10 @@ fn run_list(json: bool) -> ExitCode {
         }
     };
 
+    // Without `serde` the JSON arm ends in `return`, so clippy sees the `else`
+    // as redundant; with `serde` enabled it is not. Keep the `else` - removing it
+    // breaks the feature-on build. Verified: this does not fire under --all-features.
+    #[allow(clippy::redundant_else)]
     if json {
         #[cfg(feature = "serde")]
         {
@@ -233,6 +237,10 @@ fn report_disk(
         }
     };
 
+    // Without `serde` the JSON arm ends in `return`, so clippy sees the `else`
+    // as redundant; with `serde` enabled it is not. Keep the `else` - removing it
+    // breaks the feature-on build. Verified: this does not fire under --all-features.
+    #[allow(clippy::redundant_else)]
     if json {
         #[cfg(feature = "serde")]
         {
@@ -283,6 +291,10 @@ fn analyse_filesystem(path: &str, reader: &mut Box<dyn ReadSeek>, json: bool) ->
         }
     };
 
+    // Without `serde` the JSON arm ends in `return`, so clippy sees the `else`
+    // as redundant; with `serde` enabled it is not. Keep the `else` - removing it
+    // breaks the feature-on build. Verified: this does not fire under --all-features.
+    #[allow(clippy::redundant_else)]
     if json {
         #[cfg(feature = "serde")]
         {
@@ -299,13 +311,12 @@ fn analyse_filesystem(path: &str, reader: &mut Box<dyn ReadSeek>, json: bool) ->
             eprintln!("disk4n6: --json requires the `serde` feature");
             return ExitCode::from(2);
         }
-    } else {
-        println!("Filesystem: ISO 9660\n");
-        print!(
-            "{}",
-            disk_forensic::report::render(&disk_forensic::normalize::iso_report(&analysis))
-        );
     }
+    println!("Filesystem: ISO 9660\n");
+    print!(
+        "{}",
+        disk_forensic::report::render(&disk_forensic::normalize::iso_report(&analysis))
+    );
 
     if analysis.anomalies.is_empty() {
         ExitCode::SUCCESS
