@@ -113,8 +113,13 @@ impl VhdReader {
                  past the end of the {file_len}-byte file"
             )));
         }
-        let bat_len = usize::try_from(bat_bytes)
-            .map_err(|_| invalid(format!("VHD BAT size {bat_bytes} exceeds usize")))?;
+        // let-else rather than `.map_err(|_| ...)`: the closure would be a
+        // function llvm-cov can never see executed, because bat_bytes is a u32
+        // times 4 and so always fits a 64-bit usize. The guard is kept for the
+        // 32-bit case; only the closure goes.
+        let Ok(bat_len) = usize::try_from(bat_bytes) else {
+            return Err(invalid(format!("VHD BAT size {bat_bytes} exceeds usize")));
+        };
 
         let mut bat_raw = vec![0u8; bat_len];
         file.seek(SeekFrom::Start(table_offset))?;
