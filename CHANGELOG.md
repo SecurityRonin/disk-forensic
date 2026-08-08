@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.5](https://github.com/SecurityRonin/disk-forensic/compare/disk-forensic-v0.11.4...disk-forensic-v0.11.5) - 2026-08-06
+
+### Fixed
+
+- *(supply-chain)* vet records for the crates the lru fix resolved
+
+## [0.11.4](https://github.com/SecurityRonin/disk-forensic/compare/disk-forensic-v0.11.3...disk-forensic-v0.11.4) - 2026-08-05
+
+### Fixed
+
+- *(supply-chain)* trust our own crates instead of exempting them
+
 ## [0.11.3](https://github.com/SecurityRonin/disk-forensic/compare/disk-forensic-v0.11.2...disk-forensic-v0.11.3) - 2026-08-04
 
 ### Fixed

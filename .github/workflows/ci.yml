@@ -6,44 +6,35 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+# Retained for the repo-specific jobs BELOW `ci:` only — a called workflow does
+# not inherit the caller's `env:`, so this block governs nothing in `ci:`. The
+# old ci.yml ran the coverage/package/geiger/umbrella jobs under `-D warnings`;
+# dropping it here would quietly relax them.
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: -D warnings
 
 jobs:
-  fmt:
-    name: Format
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-      - run: cargo fmt --check
+  ci:
+    uses: SecurityRonin/fleet-ci/.github/workflows/rust-ci.yml@619094ad54edc586f5c2733358e00326b30790bd
+    with:
+      # The old MSRV job ran `cargo test --all-features --locked` at 1.93, not a
+      # build. `build` (the input default) would verify strictly less than what
+      # this repo already promised, so the check is pinned to `test`.
+      msrv-check: test
+      # The old coverage job gated on FUNCTIONS (`--fail-under-functions 100`),
+      # which no input here can express — a line gate is a different assertion.
+      # It is preserved verbatim as the `coverage` job below; turning the shared
+      # one off keeps that the single coverage gate, exactly as before.
+      coverage-gate: "off"
 
-  clippy:
-    name: Clippy
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
-      - uses: Swatinem/rust-cache@9bdad043e88c75890e36ad3bbc8d27f0090dd609 # v2.7.8
-      - run: cargo clippy --all-targets --all-features -- -D warnings
-
-  test:
-    name: Test (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@9bdad043e88c75890e36ad3bbc8d27f0090dd609 # v2.7.8
-      - run: cargo test # default features
-      - run: cargo test --all-features # serde JSON output
+  # ---------------------------------------------------------------------------
+  # Copied VERBATIM from the pre-adoption ci.yml. Each expresses something the
+  # shared workflow has no input for.
+  # ---------------------------------------------------------------------------
 
   coverage:
     name: Coverage
@@ -61,24 +52,6 @@ jobs:
       # Line % reads below 100 where reader-generic code is monomorphized per
       # reader type — the function gate is the meaningful invariant.
       - run: cargo llvm-cov --all-features --fail-under-functions 100 --show-missing-lines
-
-  msrv:
-    name: MSRV (1.93)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: dtolnay/rust-toolchain@1.93.0
-      - uses: Swatinem/rust-cache@9bdad043e88c75890e36ad3bbc8d27f0090dd609 # v2.7.8
-      - run: cargo test --all-features --locked
-
-  deny:
-    name: cargo-deny
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: EmbarkStudios/cargo-deny-action@v2 # renovate: pin digest
-        with:
-          command: check
 
   # crates.io only gates description + license fields, not the README/LICENSE
   # files — assert every publishable crate actually packages both.
@@ -100,35 +73,6 @@ jobs:
             echo "✓ $p packages README.md + LICENSE"
           done
 
-  fuzz-check:
-    name: Fuzz targets compile (nightly)
-    runs-on: ubuntu-latest
-    # cargo-fuzz builds with the host nightly; warnings in its own deps must not
-    # fail the install, so this job does not deny warnings.
-    env:
-      RUSTFLAGS: ""
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: dtolnay/rust-toolchain@nightly
-      - uses: Swatinem/rust-cache@9bdad043e88c75890e36ad3bbc8d27f0090dd609 # v2.7.8
-      - run: cargo install cargo-fuzz
-      - run: cargo +nightly fuzz check
-
-  secrets:
-    name: Secret Scan (gitleaks)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          fetch-depth: 0
-      - name: Install gitleaks
-        run: |
-          VERSION=$(curl -s https://api.github.com/repos/gitleaks/gitleaks/releases/latest | jq -r '.tag_name[1:]')
-          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz" \
-            | tar xz -C /tmp gitleaks
-      - name: Run gitleaks
-        run: /tmp/gitleaks detect --source .
-
   geiger:
     name: Unsafe Audit (cargo-geiger)
     runs-on: ubuntu-latest
@@ -139,15 +83,6 @@ jobs:
       - uses: Swatinem/rust-cache@9bdad043e88c75890e36ad3bbc8d27f0090dd609 # v2.7.8
       - run: cargo install cargo-geiger --locked
       - run: cargo geiger 2>&1 || true
-
-  docs:
-    name: Docs
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@9bdad043e88c75890e36ad3bbc8d27f0090dd609 # v2.7.8
-      - run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features
 
   umbrella-map:
     name: Umbrella map integrity
@@ -173,22 +108,3 @@ jobs:
           done < docs/umbrella-members.txt
           [ "$fail" -eq 0 ] && echo "All manifest members registered in the inventory."
           exit $fail
-
-  vet:
-    name: Cargo Vet (supply-chain)
-    runs-on: ubuntu-latest
-    # Complements `deny` (known-bad advisories/licenses) with the supply-chain-
-    # injection layer: every dependency version must be human-source-reviewed or
-    # covered by an imported aggregate audit set (Google/Mozilla/Bytecode-Alliance/
-    # Embark). Config in supply-chain/{config,audits,imports}.toml.
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Install cargo-vet
-        uses: taiki-e/install-action@59012be0884e296ca2da49b530610e72c49039ad # v2.81.6
-        with:
-          tool: cargo-vet
-      - name: Fetch dependencies
-        run: cargo fetch
-      - name: Check supply chain
-        run: cargo vet --locked
