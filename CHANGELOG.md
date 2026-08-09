@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.7](https://github.com/SecurityRonin/disk-forensic/compare/disk-forensic-v0.11.6...disk-forensic-v0.11.7) - 2026-08-09
+
+### Fixed
+
+- *(gitignore)* unanchor the target rule so nested cargo projects are ignored
+
 ## [0.11.6](https://github.com/SecurityRonin/disk-forensic/compare/disk-forensic-v0.11.5...disk-forensic-v0.11.6) - 2026-08-08
 
 ### Fixed
