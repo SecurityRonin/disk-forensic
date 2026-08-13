@@ -19,7 +19,7 @@ env:
 
 jobs:
   ci:
-    uses: SecurityRonin/fleet-ci/.github/workflows/rust-ci.yml@619094ad54edc586f5c2733358e00326b30790bd
+    uses: SecurityRonin/fleet-ci/.github/workflows/rust-ci.yml@9234e1fa9f85b14a8d6fddc7a8f7378f7e30b183
     with:
       # The old MSRV job ran `cargo test --all-features --locked` at 1.93, not a
       # build. `build` (the input default) would verify strictly less than what
