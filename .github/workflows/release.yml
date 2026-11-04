@@ -140,22 +140,6 @@ jobs:
           event-type: update-disk4n6
           client-payload: '{"version": "${{ github.ref_name }}"}'
 
-  crate:
-    needs: release
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
-      - name: Publish to crates.io
-        run: |
-          output=$(cargo publish --allow-dirty 2>&1) && echo "$output" || {
-            echo "$output"
-            echo "$output" | grep -q "already exists on crates.io" || exit 1
-            echo "Version already published to crates.io, skipping"
-          }
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-
   winget:
     needs: release
     runs-on: windows-latest
@@ -241,9 +225,13 @@ jobs:
           path: debs
           merge-multiple: true
 
+      # cloudsmith-cli 1.16.0 pins mcp==1.9.1, which imports a pydantic internal
+      # (eval_type_backport) that current pydantic removed, so on a fresh runner
+      # the CLI dies at import. 1.30.1 pins mcp==2.3.0 and runs (checked on
+      # python:3.14-slim, 2026-11-04). Bump the pin, never the unpinned pydantic.
       - name: Install Cloudsmith CLI
         run: |
-          pip install --user cloudsmith-cli==1.16.0
+          pip install --user cloudsmith-cli==1.30.1
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Push amd64 to Cloudsmith
